@@ -1,0 +1,14 @@
+{
+  "sql": "SELECT * FROM 'signalforge/+/data'",
+  "description": "Signal Forge Sensor Data Ingest to Kinesis",
+  "actions": [
+    {
+      "kinesis": {
+        "streamName": "signal-forge-ingest-stream",
+        "partitionKey": "${timestamp()}",
+       "roleArn": "arn:aws:iam::465362303774:role/signal-forge-test-DashboardApiFunctionRole-uWx4BiH1ao0a"
+      }
+    }
+  ],
+  "ruleDisabled": false
+}

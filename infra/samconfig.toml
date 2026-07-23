@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "signal-forge-test"
+resolve_s3 = true
+s3_prefix = "signal-forge-test"
+profile = "signal-forge"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AlertEmail=\"samsonspiniello@gmail.com\" AlertPhoneNumber=\"+17816194211\""
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

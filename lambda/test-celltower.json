@@ -1,0 +1,11 @@
+﻿{
+  "sensor_id": "CELL-001",
+  "sensor_type": "celltower",
+  "reading": {
+    "mcc": 722,
+    "mnc": 310,
+    "lac": 12345,
+    "cid": 67890
+  },
+  "site_id": "caracas-site-7"
+}

@@ -1,0 +1,414 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Operational Signal Forge - ground-sensor fusion pipeline for search-and-rescue
+  detection.
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: samsonspiniello@gmail.com
+  AlertPhoneNumber:
+    Type: String
+    Default: '+17816194211'
+  OpenCellIDApiKey:
+    Type: String
+    Default: pk.1bbb4e43baf28e9edacd567c944d04c0
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.12
+    MemorySize: 256
+    Tracing: Active
+Resources:
+  SensorIngestDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: signal-forge-sensor-ingest-dlq
+      MessageRetentionPeriod: 1209600
+  SensorIngestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: signal-forge-sensor-ingest
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 86400
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+          - SensorIngestDLQ
+          - Arn
+        maxReceiveCount: 3
+  DLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: signal-forge-dlq-messages
+      AlarmDescription: Messages in the sensor ingest DLQ - indicates failed processing
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+      - Name: QueueName
+        Value:
+          Fn::GetAtt:
+          - SensorIngestDLQ
+          - QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+      - Ref: HighConfidenceAlertTopic
+      TreatMissingData: notBreaching
+  IoTToSQSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: signal-forge-iot-to-sqs-role
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: iot.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: WriteToSQS
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: sqs:SendMessage
+            Resource:
+              Fn::GetAtt:
+              - SensorIngestQueue
+              - Arn
+  IoTIngestRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: SignalForgeSensorIngest
+      TopicRulePayload:
+        Sql: SELECT * FROM 'signal-forge/sensors/+/reading'
+        Actions:
+        - Sqs:
+            QueueUrl:
+              Ref: SensorIngestQueue
+            RoleArn:
+              Fn::GetAtt:
+              - IoTToSQSRole
+              - Arn
+            UseBase64: false
+        RuleDisabled: false
+  DetectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: signal-forge-detections-prod
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: cell_id
+        AttributeType: S
+      - AttributeName: site_id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: cell_id
+        KeyType: HASH
+      GlobalSecondaryIndexes:
+      - IndexName: site-index
+        KeySchema:
+        - AttributeName: site_id
+          KeyType: HASH
+        Projection:
+          ProjectionType: ALL
+  SubscribersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: signal-forge-subscribers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: phone
+        AttributeType: S
+      KeySchema:
+      - AttributeName: phone
+        KeyType: HASH
+  HighConfidenceAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: signal-forge-high-confidence-alerts-prod
+  PublicUpdatesTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: signal-forge-public-updates
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn:
+        Ref: HighConfidenceAlertTopic
+      Protocol: email
+      Endpoint:
+        Ref: AlertEmail
+  AlertSmsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn:
+        Ref: HighConfidenceAlertTopic
+      Protocol: sms
+      Endpoint:
+        Ref: AlertPhoneNumber
+  FusionEngineFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: fusion_engine.handler
+      CodeUri: FusionEngineFunction
+      Environment:
+        Variables:
+          DETECTIONS_TABLE:
+            Ref: DetectionsTable
+          ALERT_TOPIC_ARN:
+            Ref: HighConfidenceAlertTopic
+          HIGH_CONFIDENCE_THRESHOLD: '0.75'
+          OPENCELLID_API_KEY:
+            Ref: OpenCellIDApiKey
+          TWILIO_SECRET_ARN: arn:aws:secretsmanager:us-east-1:465362303774:secret:signal-forge/twilio-rgPbht
+          Tracing: Active
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: DetectionsTable
+      - SNSPublishMessagePolicy:
+          TopicName:
+            Fn::GetAtt:
+            - HighConfidenceAlertTopic
+            - TopicName
+      - SQSPollerPolicy:
+          QueueName:
+            Fn::GetAtt:
+            - SensorIngestQueue
+            - QueueName
+      Events:
+        SQSQueue:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt:
+              - SensorIngestQueue
+              - Arn
+            BatchSize: 10
+    Metadata:
+      SamResourceId: FusionEngineFunction
+  DLQReplayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dlq_replay.handler
+      CodeUri: DLQReplayFunction
+      Environment:
+        Variables:
+          DLQ_URL:
+            Ref: SensorIngestDLQ
+          MAIN_QUEUE_URL:
+            Ref: SensorIngestQueue
+      Policies:
+      - SQSPollerPolicy:
+          QueueName:
+            Fn::GetAtt:
+            - SensorIngestDLQ
+            - QueueName
+      - Statement:
+        - Effect: Allow
+          Action:
+          - sqs:SendMessage
+          - sqs:DeleteMessage
+          - sqs:ReceiveMessage
+          - sqs:GetQueueAttributes
+          Resource:
+          - Fn::GetAtt:
+            - SensorIngestQueue
+            - Arn
+          - Fn::GetAtt:
+            - SensorIngestDLQ
+            - Arn
+    Metadata:
+      SamResourceId: DLQReplayFunction
+  ServerlessHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+        - https://d39wqpvhmsp87i.cloudfront.net
+        AllowMethods:
+        - GET
+        - POST
+        - OPTIONS
+        AllowHeaders:
+        - Content-Type
+  DashboardApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dashboard_api.handler
+      CodeUri: DashboardApiFunction
+      Environment:
+        Variables:
+          DETECTIONS_TABLE:
+            Ref: DetectionsTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: DetectionsTable
+      Events:
+        GetCells:
+          Type: HttpApi
+          Properties:
+            Path: /sites/{site_id}/cells
+            Method: GET
+            ApiId:
+              Ref: ServerlessHttpApi
+        UpdateStatus:
+          Type: HttpApi
+          Properties:
+            Path: /cells/{cell_id}/status
+            Method: POST
+            ApiId:
+              Ref: ServerlessHttpApi
+    Metadata:
+      SamResourceId: DashboardApiFunction
+  SubscriptionApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+        - '*'
+        AllowMethods:
+        - POST
+        - OPTIONS
+        AllowHeaders:
+        - Content-Type
+  SubscriptionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: subscription_api.handler
+      CodeUri: SubscriptionFunction
+      Environment:
+        Variables:
+          SUBSCRIBERS_TABLE:
+            Ref: SubscribersTable
+          PUBLIC_UPDATES_TOPIC_ARN:
+            Ref: PublicUpdatesTopic
+          TWILIO_SECRET_ARN: arn:aws:secretsmanager:us-east-1:465362303774:secret:signal-forge/twilio-rgPbht
+          Tracing: Active
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: SubscribersTable
+      - Statement:
+        - Effect: Allow
+          Action:
+          - sns:Publish
+          - sns:Subscribe
+          - sns:Unsubscribe
+          - secretsmanager:GetSecretValue
+          Resource: '*'
+      Events:
+        Subscribe:
+          Type: HttpApi
+          Properties:
+            Path: /subscribe
+            Method: POST
+            ApiId:
+              Ref: SubscriptionApi
+        Confirm:
+          Type: HttpApi
+          Properties:
+            Path: /confirm
+            Method: POST
+            ApiId:
+              Ref: SubscriptionApi
+        Unsubscribe:
+          Type: HttpApi
+          Properties:
+            Path: /unsubscribe
+            Method: POST
+            ApiId:
+              Ref: SubscriptionApi
+    Metadata:
+      SamResourceId: SubscriptionFunction
+  DashboardBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: signal-forge-dashboard-${AWS::AccountId}-prod
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  DashboardOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for Signal Forge dashboard
+  DashboardBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DashboardBucket
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            CanonicalUser:
+              Fn::GetAtt:
+              - DashboardOAI
+              - S3CanonicalUserId
+          Action: s3:GetObject
+          Resource:
+            Fn::Sub: ${DashboardBucket.Arn}/*
+  DashboardDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: DashboardBucketPolicy
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+        - Id: dashboardOrigin
+          DomainName:
+            Fn::GetAtt:
+            - DashboardBucket
+            - RegionalDomainName
+          S3OriginConfig:
+            OriginAccessIdentity:
+              Fn::Sub: origin-access-identity/cloudfront/${DashboardOAI}
+        DefaultCacheBehavior:
+          TargetOriginId: dashboardOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachedMethods:
+          - GET
+          - HEAD
+          AllowedMethods:
+          - GET
+          - HEAD
+          ForwardedValues:
+            QueryString: false
+Outputs:
+  DetectionsTableName:
+    Value:
+      Ref: DetectionsTable
+  SubscribersTableName:
+    Value:
+      Ref: SubscribersTable
+  SensorIngestQueueUrl:
+    Value:
+      Ref: SensorIngestQueue
+  SensorIngestDLQUrl:
+    Value:
+      Ref: SensorIngestDLQ
+  DashboardApiUrl:
+    Description: API base URL
+    Value:
+      Fn::Sub: https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  SubscriptionApiUrl:
+    Description: SMS subscription API base URL
+    Value:
+      Fn::Sub: https://${SubscriptionApi}.execute-api.${AWS::Region}.amazonaws.com
+  DashboardUrl:
+    Value:
+      Fn::Sub: https://${DashboardDistribution.DomainName}
+  AlertTopicArn:
+    Value:
+      Ref: HighConfidenceAlertTopic
+  PublicUpdatesTopicArn:
+    Value:
+      Ref: PublicUpdatesTopic

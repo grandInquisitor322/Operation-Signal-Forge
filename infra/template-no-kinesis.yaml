@@ -1,0 +1,156 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Operational Signal Forge (TEMPORARY - no Kinesis).
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.12
+    MemorySize: 256
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: samsonspiniello@gmail.com
+  AlertPhoneNumber:
+    Type: String
+    Default: "+17816194211"
+
+Resources:
+
+  DetectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: signal-forge-detections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: cell_id
+          AttributeType: S
+        - AttributeName: site_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: cell_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: site-index
+          KeySchema:
+            - AttributeName: site_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  HighConfidenceAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: signal-forge-high-confidence-alerts
+
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref HighConfidenceAlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  AlertSmsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref HighConfidenceAlertTopic
+      Protocol: sms
+      Endpoint: !Ref AlertPhoneNumber
+
+  ServerlessHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "https://dq9gifvd2wbnb.cloudfront.net"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+  DashboardApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dashboard_api.handler
+      CodeUri: ../lambda/
+      Environment:
+        Variables:
+          DETECTIONS_TABLE: !Ref DetectionsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DetectionsTable
+      Events:
+        GetCells:
+          Type: HttpApi
+          Properties:
+            Path: /sites/{site_id}/cells
+            Method: GET
+            ApiId: !Ref ServerlessHttpApi
+        UpdateStatus:
+          Type: HttpApi
+          Properties:
+            Path: /cells/{cell_id}/status
+            Method: POST
+            ApiId: !Ref ServerlessHttpApi
+
+  DashboardBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "signal-forge-dashboard-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  DashboardOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for Signal Forge dashboard
+
+  DashboardBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DashboardBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt DashboardOAI.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${DashboardBucket.Arn}/*"
+
+  DashboardDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: DashboardBucketPolicy
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: dashboardOrigin
+            DomainName: !GetAtt DashboardBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${DashboardOAI}"
+        DefaultCacheBehavior:
+          TargetOriginId: dashboardOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          CachedMethods: [GET, HEAD]
+          AllowedMethods: [GET, HEAD]
+          ForwardedValues:
+            QueryString: false
+
+Outputs:
+  DetectionsTableName:
+    Value: !Ref DetectionsTable
+  DashboardApiUrl:
+    Description: API base URL
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  DashboardUrl:
+    Value: !Sub "https://${DashboardDistribution.DomainName}"
+  AlertTopicArn:
+    Value: !Ref HighConfidenceAlertTopic

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signal Forge — Site Operations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<style>
+  :root {
+    --bg: #0b0e10;
+    --panel: #13171a;
+    --line: #232b2f;
+    --text: #d8e0e4;
+    --muted: #7c8a90;
+    --accent: #ff7a45;       /* high-confidence detection */
+    --accent-2: #3fb6a8;     /* searching */
+    --ok: #6fcf97;           /* cleared */
+    --confirmed: #ffd166;    /* confirmed find */
+    --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Inter", -apple-system, sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  header h1 {
+    font-size: 15px; font-family: var(--mono); letter-spacing: 0.06em;
+    margin: 0; text-transform: uppercase; color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  .site-status { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .live-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ok); margin-right: 6px; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #map { flex: 1; background: #0b0e10; }
+
+  aside {
+    width: 320px; border-left: 1px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .panel-section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .panel-section h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 12px 0; font-family: var(--mono);
+  }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+  .stat-row .val { font-family: var(--mono); font-weight: 600; }
+  .stat-row .val.hot { color: var(--accent); }
+
+  .cell-card {
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+    margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .cell-card:hover { border-color: var(--accent); }
+  .cell-card .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .cell-card .id { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .cell-card .score { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+  .cell-card .bars { display: flex; gap: 4px; margin-top: 6px; }
+  .sig-bar { flex: 1; height: 4px; border-radius: 2px; background: #2a3236; position: relative; overflow: hidden; }
+  .sig-bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
+  .sig-bar.radar .fill { background: #5b9bd5; }
+  .sig-bar.thermal .fill { background: #ff7a45; }
+  .sig-bar.acoustic .fill { background: #3fb6a8; }
+  .legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  select, button {
+    background: #1a2024; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 6px 10px; font-family: var(--mono); font-size: 12px;
+    width: 100%;
+  }
+  button { cursor: pointer; margin-top: 6px; }
+  button:hover { border-color: var(--accent); }
+
+  .empty-msg { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+
+  .confirmed-panel {
+    background: #1f2529; border: 1px solid var(--confirmed); border-radius: 6px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .confirmed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .confirmed-id { font-family: var(--mono); color: var(--confirmed); font-weight: 700; font-size: 12px; }
+  .confirmed-score { color: var(--confirmed); font-size: 14px; font-weight: 700; }
+  .confirmed-meta { font-size: 11px; color: var(--muted); margin: 6px 0; }
+  .confirmed-panel input, .confirmed-panel textarea {
+    width: 100%; margin-top: 6px; background: #0e1214; border: 1px solid var(--line);
+    color: var(--text); border-radius: 4px; padding: 6px 8px; font-size: 12px;
+    font-family: inherit;
+  }
+  .confirmed-panel textarea { resize: vertical; min-height: 50px; }
+
+  .log-entry {
+    padding: 7px 9px; margin-bottom: 5px; border-left: 3px solid var(--accent);
+    background: #1a2024; border-radius: 4px; font-size: 11px; line-height: 1.4;
+  }
+  .log-time { font-family: var(--mono); color: var(--muted); font-size: 10px; display: block; margin-bottom: 2px; }
+
+  .leaflet-popup-content-wrapper { background: var(--panel); color: var(--text); border-radius: 6px; }
+  .leaflet-popup-tip { background: var(--panel); }
+  .popup-title { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .popup-score { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>OPERATIONAL <span>SIGNAL FORGE</span></h1>
+  <div class="site-status"><span class="live-dot"></span>SITE: <span id="site-name">caracas-site-7</span> · <span id="last-sync">syncing…</span></div>
+</header>
+
+<main>
+  <div id="map"></div>
+  <aside>
+    <div class="panel-section">
+      <h2>Site Summary</h2>
+      <div class="stat-row"><span>Cells scanned</span><span class="val" id="stat-total">0</span></div>
+      <div class="stat-row"><span>High confidence (≥0.75)</span><span class="val hot" id="stat-high">0</span></div>
+      <div class="stat-row"><span>Searching</span><span class="val" id="stat-searching">0</span></div>
+      <div class="stat-row"><span>Confirmed</span><span class="val" id="stat-confirmed">0</span></div>
+    </div>
+    <div class="panel-section">
+      <h2>Filter</h2>
+      <select id="min-score-filter">
+        <option value="0">All cells</option>
+        <option value="0.3">≥ 0.30 — worth a look</option>
+        <option value="0.5" selected>≥ 0.50 — investigate</option>
+        <option value="0.75">≥ 0.75 — high confidence</option>
+      </select>
+      <div class="legend-row"><span class="legend-dot" style="background:#5b9bd5"></span>Radar (void + micro-Doppler)</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#ff7a45"></span>Thermal (body-heat signature)</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#3fb6a8"></span>Acoustic (tapping / voice)</div>
+    </div>
+    <div class="panel-section">
+      <h2>Confirmed Cases <span id="confirmed-count" style="color:#ffd166">(0)</span></h2>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+        Marking a case "confirmed" requires a name — someone who physically
+        verified it on site. This system never auto-confirms a detection.
+      </div>
+      <div id="confirmed-list"></div>
+    </div>
+    <div class="panel-section" style="flex:1;">
+      <h2>Activity Log</h2>
+      <div id="activity-log" style="max-height:240px; overflow-y:auto;"></div>
+    </div>
+    <div class="panel-section">
+      <h2>Top Priority Cells</h2>
+      <div id="cell-list"><div class="empty-msg">No data loaded yet</div></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+// ---------------------------------------------------------------------------
+// Config — point this at your deployed API Gateway endpoint
+// ---------------------------------------------------------------------------
+const API_BASE = "https://ebghh0tvv4.execute-api.us-east-1.amazonaws.com";
+const SITE_ID = "caracas-site-7";
+const USE_SAMPLE_DATA = false; // flip to false once API_BASE is live
+
+// ---------------------------------------------------------------------------
+// Map setup
+// ---------------------------------------------------------------------------
+const map = L.map('map', { zoomControl: true }).setView([10.4806, -66.9036], 17);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 20,
+}).addTo(map);
+
+let heatLayer = null;
+let markerLayer = L.layerGroup().addTo(map);
+let cellsData = [];
+let activityLog = [];
+
+function addLog(message) {
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  activityLog.unshift({ time, message });
+  if (activityLog.length > 30) activityLog.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('activity-log');
+  if (activityLog.length === 0) {
+    el.innerHTML = '<div class="empty-msg">No activity yet</div>';
+    return;
+  }
+  el.innerHTML = activityLog.map(e => `
+    <div class="log-entry"><span class="log-time">${e.time}</span>${e.message}</div>
+  `).join('');
+}
+
+function scoreColor(score) {
+  if (score >= 0.75) return '#ff7a45';
+  if (score >= 0.5) return '#ffb347';
+  if (score >= 0.3) return '#ffd166';
+  return '#5b9bd5';
+}
+
+function statusColor(status) {
+  return { unassigned: '#7c8a90', searching: '#3fb6a8', cleared: '#6fcf97', confirmed: '#ffd166' }[status] || '#7c8a90';
+}
+
+function renderMap(cells) {
+  markerLayer.clearLayers();
+  if (heatLayer) map.removeLayer(heatLayer);
+
+  const heatPoints = cells.map(c => [c.lat, c.lon, c.fused_probability]);
+  heatLayer = L.heatLayer(heatPoints, { radius: 28, blur: 22, maxZoom: 19, max: 1.0 }).addTo(map);
+
+  cells.forEach(c => {
+    const marker = L.circleMarker([c.lat, c.lon], {
+      radius: 6,
+      color: statusColor(c.status),
+      fillColor: scoreColor(c.fused_probability),
+      fillOpacity: 0.9,
+      weight: 2,
+    }).addTo(markerLayer);
+
+    marker.bindPopup(`
+      <div class="popup-title">${c.cell_id}</div>
+      <div class="popup-score">${(c.fused_probability * 100).toFixed(0)}%</div>
+      <div style="font-size:11px;color:#7c8a90;margin-top:4px;">
+        Radar ${(c.radar_score*100).toFixed(0)}% · Thermal ${(c.thermal_score*100).toFixed(0)}% · Acoustic ${(c.acoustic_score*100).toFixed(0)}%
+      </div>
+      <div style="margin-top:8px;">
+        <select onchange="this.value === 'confirmed' ? promptConfirm('${c.cell_id}') : updateStatus('${c.cell_id}', this.value)" style="width:100%;">
+          <option value="unassigned" ${c.status==='unassigned'?'selected':''}>Unassigned</option>
+          <option value="searching" ${c.status==='searching'?'selected':''}>Searching</option>
+          <option value="cleared" ${c.status==='cleared'?'selected':''}>Cleared</option>
+          <option value="confirmed" ${c.status==='confirmed'?'selected':''}>Confirmed</option>
+        </select>
+      </div>
+    `);
+  });
+}
+
+function renderSidebar(cells) {
+  document.getElementById('stat-total').textContent = cells.length;
+  document.getElementById('stat-high').textContent = cells.filter(c => c.fused_probability >= 0.75).length;
+  document.getElementById('stat-searching').textContent = cells.filter(c => c.status === 'searching').length;
+  document.getElementById('stat-confirmed').textContent = cells.filter(c => c.status === 'confirmed').length;
+
+  const top = [...cells].sort((a, b) => b.fused_probability - a.fused_probability).slice(0, 8);
+  const list = document.getElementById('cell-list');
+
+  if (top.length === 0) {
+    list.innerHTML = '<div class="empty-msg">No cells match this filter</div>';
+    return;
+  }
+
+  list.innerHTML = top.map(c => `
+    <div class="cell-card" onclick="map.setView([${c.lat}, ${c.lon}], 19)">
+      <div class="top">
+        <span class="id">${c.cell_id}</span>
+        <span class="score" style="color:${scoreColor(c.fused_probability)}">${(c.fused_probability*100).toFixed(0)}%</span>
+      </div>
+      <div class="bars">
+        <div class="sig-bar radar"><div class="fill" style="width:${c.radar_score*100}%"></div></div>
+        <div class="sig-bar thermal"><div class="fill" style="width:${c.thermal_score*100}%"></div></div>
+        <div class="sig-bar acoustic"><div class="fill" style="width:${c.acoustic_score*100}%"></div></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderConfirmed() {
+  const confirmed = cellsData.filter(c => c.status === 'confirmed');
+  document.getElementById('confirmed-count').textContent = `(${confirmed.length})`;
+
+  const list = document.getElementById('confirmed-list');
+  if (confirmed.length === 0) {
+    list.innerHTML = '<div class="empty-msg">No confirmed cases yet</div>';
+    return;
+  }
+
+  list.innerHTML = confirmed.map(c => `
+    <div class="confirmed-panel">
+      <div class="confirmed-header">
+        <span class="confirmed-id">${c.cell_id}</span>
+        <span class="confirmed-score">${(c.fused_probability*100).toFixed(0)}%</span>
+      </div>
+      <div class="confirmed-meta">
+        Verified by: <strong>${c.confirmed_by || 'unknown'}</strong>
+      </div>
+      <label style="font-size:11px;color:var(--muted);">Estimated survivors at this location</label>
+      <input type="number" min="0" max="50" value="${c.survivors_estimate ?? ''}"
+             placeholder="e.g. 1"
+             onchange="updateCellField('${c.cell_id}', 'survivors_estimate', this.value)">
+      <label style="font-size:11px;color:var(--muted);margin-top:6px;display:block;">Notes from the team on site</label>
+      <textarea placeholder="Condition, access, hazards, anything the next team needs to know..."
+                onchange="updateCellField('${c.cell_id}', 'notes', this.value)">${c.notes || ''}</textarea>
+    </div>
+  `).join('');
+}
+
+async function updateCellField(cellId, field, value) {
+  const cell = cellsData.find(c => c.cell_id === cellId);
+  if (!cell) return;
+  cell[field] = field === 'survivors_estimate' ? parseInt(value) || 0 : value;
+
+  if (USE_SAMPLE_DATA) {
+    addLog(`Updated ${field.replace('_', ' ')} for <strong>${cellId}</strong>`);
+    return;
+  }
+  try {
+    await fetch(`${API_BASE}/cells/${cellId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status: cell.status, [field]: cell[field], confirmed_by: cell.confirmed_by }),
+    });
+    addLog(`Updated ${field.replace('_', ' ')} for <strong>${cellId}</strong>`);
+  } catch (e) {
+    addLog(`Failed to save update for <strong>${cellId}</strong>`);
+  }
+}
+
+async function promptConfirm(cellId) {
+  const name = prompt(
+    "Who is physically confirming this on site? Enter your name or call sign.\n" +
+    "This system will not mark a case confirmed without this."
+  );
+  if (!name || !name.trim()) {
+    addLog(`Confirm cancelled for <strong>${cellId}</strong> — no verifier name given`);
+    return;
+  }
+  const cell = cellsData.find(c => c.cell_id === cellId);
+  if (!cell) return;
+  cell.status = 'confirmed';
+  cell.confirmed_by = name.trim();
+
+  if (!USE_SAMPLE_DATA) {
+    try {
+      await fetch(`${API_BASE}/cells/${cellId}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'confirmed', confirmed_by: name.trim() }),
+      });
+    } catch (e) {
+      addLog(`Failed to save confirmation for <strong>${cellId}</strong>`);
+    }
+  }
+  addLog(`<strong>${cellId}</strong> confirmed by ${name.trim()}`);
+  applyFilterAndRender();
+}
+
+function applyFilterAndRender() {
+  const minScore = parseFloat(document.getElementById('min-score-filter').value);
+  const filtered = cellsData.filter(c => c.fused_probability >= minScore);
+  renderMap(filtered);
+  renderSidebar(filtered);
+  renderConfirmed();
+}
+
+async function updateStatus(cellId, status) {
+  if (USE_SAMPLE_DATA) {
+    const cell = cellsData.find(c => c.cell_id === cellId);
+    if (cell) cell.status = status;
+    addLog(`<strong>${cellId}</strong> status changed to ${status}`);
+    applyFilterAndRender();
+    return;
+  }
+  await fetch(`${API_BASE}/cells/${cellId}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+  addLog(`<strong>${cellId}</strong> status changed to ${status}`);
+  fetchData();
+}
+
+async function fetchData() {
+  document.getElementById('last-sync').textContent = 'syncing…';
+  try {
+    let cells;
+    if (USE_SAMPLE_DATA) {
+      cells = generateSampleData();
+    } else {
+      const resp = await fetch(`${API_BASE}/sites/${SITE_ID}/cells`);
+      const json = await resp.json();
+      cells = json.cells.map(c => ({
+        ...c, lat: parseFloat(c.lat), lon: parseFloat(c.lon),
+        fused_probability: parseFloat(c.fused_probability),
+        radar_score: parseFloat(c.radar_score || 0),
+        thermal_score: parseFloat(c.thermal_score || 0),
+        acoustic_score: parseFloat(c.acoustic_score || 0),
+      }));
+    }
+    cellsData = cells;
+    applyFilterAndRender();
+    document.getElementById('last-sync').textContent = 'live · ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('last-sync').textContent = 'sync failed';
+    console.error(e);
+  }
+}
+
+// Sample data generator — remove once API_BASE is wired up
+function generateSampleData() {
+  const centerLat = 10.4806, centerLon = -66.9036;
+  const cells = [];
+  const statuses = ['unassigned', 'unassigned', 'unassigned', 'searching', 'cleared'];
+  for (let i = 0; i < 40; i++) {
+    const lat = centerLat + (Math.random() - 0.5) * 0.01;
+    const lon = centerLon + (Math.random() - 0.5) * 0.01;
+    const radar = Math.random() ** 1.5;
+    const thermal = Math.random() ** 1.8;
+    const acoustic = Math.random() ** 2.2;
+    const active = [radar, thermal, acoustic].filter(s => s > 0.3).length;
+    const bonus = { 1: 0, 2: 0.10, 3: 0.20 }[active] || 0;
+    const fused = Math.min((radar*0.4 + thermal*0.3 + acoustic*0.3) + bonus, 1.0);
+    cells.push({
+      cell_id: `c${i.toString().padStart(3,'0')}`,
+      lat, lon,
+      radar_score: radar, thermal_score: thermal, acoustic_score: acoustic,
+      fused_probability: fused,
+      status: fused > 0.75 ? 'unassigned' : statuses[Math.floor(Math.random()*statuses.length)],
+    });
+  }
+  return cells;
+}
+
+document.getElementById('min-score-filter').addEventListener('change', applyFilterAndRender);
+document.getElementById('site-name').textContent = SITE_ID;
+
+fetchData();
+setInterval(fetchData, 30000); // re-sync every 30s
+</script>
+</body>
+</html>
