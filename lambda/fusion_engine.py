@@ -4,9 +4,13 @@
 """
 Operational Signal Forge - Sensor Fusion Engine (SQS Version)
 ==============================================================
-Ingests radar/thermal/acoustic/celltower sensor readings from SQS,
-fuses them into a per-grid-cell probability score,
-and writes results to DynamoDB.
+Ingests sensor readings from SQS (radar / thermal / acoustic /
+celltower / starlink), routes each to its sensor module when
+applicable, fuses scores into a per-grid-cell probability, and
+writes results to DynamoDB.
+
+Starlink-specific parsing, scoring, and metadata stay in
+lambda_sensors_starlink — this engine only orchestrates.
 """
 
 import json
@@ -16,8 +20,8 @@ from decimal import Decimal, ROUND_HALF_UP
 
 import boto3
 
-from celltower import score_celltower, lookup_celltower_location 
-
+from celltower import score_celltower, lookup_celltower_location
+from lambda_sensors_starlink import process as process_starlink
 
 dynamodb = boto3.resource("dynamodb")
 sns = boto3.client("sns")
@@ -94,10 +98,24 @@ def score_acoustic(reading: dict) -> float:
     return min(score, 1.0)
 
 
-def fuse_scores(radar: float, thermal: float, acoustic: float) -> float:
+def fuse_scores(
+    radar: float,
+    thermal: float,
+    acoustic: float,
+    starlink: float = 0.0,
+) -> float:
+    """
+    Generic multi-modality fusion. Uses pre-computed sensor scores only.
+    No sensor-specific heuristics live here.
+    """
     base = radar * 0.4 + thermal * 0.3 + acoustic * 0.3
+    if starlink > 0:
+        base = base * 0.85 + starlink * 0.15
+
     active = sum(1 for s in (radar, thermal, acoustic) if s > 0.3)
-    bonus = {1: 0.0, 2: 0.10, 3: 0.20}.get(active, 0.0)
+    if starlink > 0.3:
+        active += 1
+    bonus = {1: 0.0, 2: 0.10, 3: 0.20, 4: 0.25}.get(active, 0.0)
     return round(min(base + bonus, 1.0), 3)
 
 
@@ -117,6 +135,7 @@ def get_or_create_cell(cell_id: str, lat: float, lon: float, site_id: str) -> di
         "radar_score": d(0),
         "thermal_score": d(0),
         "acoustic_score": d(0),
+        "starlink_score": d(0),
         "fused_probability": d(0),
         "status": "unassigned",
         "created_at": int(time.time()),
@@ -144,46 +163,65 @@ def score_celltower(reading: dict) -> float:
 
 
 def process_reading(payload: dict) -> dict:
+    """
+    Orchestration only:
+      1. Determine sensor type
+      2. Call the appropriate sensor module (or in-engine scorer)
+      3. Receive a standardized score + location
+      4. Pass into the generic fusion pipeline
+      5. Persist and optionally alert
+
+    Does not parse Starlink fields, compute Starlink confidence,
+    run orbital math, or build Starlink metadata.
+    """
     sensor_type = payload["sensor_type"]
-    
-    if sensor_type == "celltower":
-        # Special handling for celltower
+
+    if sensor_type == "starlink":
+        # Sensor module owns validation + Starlink-specific work
+        observation = process_starlink(payload)
+        lat = float(observation["lat"])
+        lon = float(observation["lon"])
+        site_id = observation["site_id"]
+        signal_score = float(observation["starlink_score"])
+    elif sensor_type == "celltower":
         location = lookup_celltower_location(payload["reading"])
         lat = location["lat"]
         lon = location["lon"]
+        site_id = payload.get("site_id", "unknown")
         signal_score = score_celltower(payload["reading"])
     else:
-        # Standard sensors
+        # radar / thermal / acoustic (in-engine scorers for now)
         lat = float(payload["lat"])
         lon = float(payload["lon"])
+        site_id = payload.get("site_id", "unknown")
         reading = payload["reading"]
         score_fn = {
             "radar": score_radar,
             "thermal": score_thermal,
             "acoustic": score_acoustic,
         }.get(sensor_type)
+        if score_fn is None:
+            raise ValueError(f"Unknown sensor_type: {sensor_type}")
         signal_score = score_fn(reading)
 
-    site_id = payload.get("site_id", "unknown")
     cell_id = cell_id_from_coords(lat, lon)
     cell = get_or_create_cell(cell_id, lat, lon, site_id)
 
-    # Update this sensor's score
+    # Generic per-sensor score update
     cell[f"{sensor_type}_score"] = d(signal_score)
     cell[f"{sensor_type}_last_updated"] = int(time.time())
 
-    # Fuse all three scores
     fused = fuse_scores(
         float(cell.get("radar_score", 0)),
         float(cell.get("thermal_score", 0)),
         float(cell.get("acoustic_score", 0)),
+        float(cell.get("starlink_score", 0)),
     )
     cell["fused_probability"] = d(fused)
     cell["updated_at"] = int(time.time())
 
-    # Write to DynamoDB
     table.put_item(Item=cell)
-    print(f"Wrote cell {cell_id} fused={fused:.3f} site={site_id}")
+    print(f"Wrote cell {cell_id} fused={fused:.3f} site={site_id} sensor={sensor_type}")
 
     alert = False
     if fused >= HIGH_CONFIDENCE_THRESHOLD and ALERT_TOPIC_ARN:
@@ -196,9 +234,10 @@ def process_reading(payload: dict) -> dict:
                     f"Cell: {cell_id} ({lat:.5f}, {lon:.5f})\n"
                     f"Site: {site_id}\n"
                     f"Fused probability: {fused}\n"
-                    f"Radar: {float(cell.get('radar_score',0)):.2f}  "
-                    f"Thermal: {float(cell.get('thermal_score',0)):.2f}  "
-                    f"Acoustic: {float(cell.get('acoustic_score',0)):.2f}\n"
+                    f"Radar: {float(cell.get('radar_score', 0)):.2f}  "
+                    f"Thermal: {float(cell.get('thermal_score', 0)):.2f}  "
+                    f"Acoustic: {float(cell.get('acoustic_score', 0)):.2f}  "
+                    f"Starlink: {float(cell.get('starlink_score', 0)):.2f}\n"
                     f"Dispatch search team immediately."
                 ),
                 MessageAttributes={
@@ -248,9 +287,14 @@ def handler(event, context):
         # DEBUG LINE - RIGHT HERE
         print(f"DEBUG: Sensor type: {payload.get('sensor_type')}, Keys: {list(payload.keys())}")
 
-        # Validate required fields based on sensor_type
+        # Validate required fields based on sensor_type.
+        # Starlink validation is deferred to lambda_sensors_starlink.process().
         sensor_type = payload.get("sensor_type")
-        if sensor_type in ("radar", "thermal", "acoustic"):
+        if sensor_type == "starlink":
+            if "sensor_type" not in payload:
+                print(f"[SKIP] Message {message_id}: missing sensor_type — discarding")
+                continue
+        elif sensor_type in ("radar", "thermal", "acoustic"):
             required = ("lat", "lon", "sensor_type", "reading")
             missing = [f for f in required if f not in payload]
             if missing:
@@ -280,6 +324,10 @@ def handler(event, context):
             result = process_reading(payload)
             results.append(result)
             print(f"[OK] Message {message_id}: {result}")
+        except ValueError as e:
+            # Sensor-module validation failures (e.g. Starlink) — discard, no retry
+            print(f"[SKIP] Message {message_id}: sensor module rejected — {e}")
+            continue
         except Exception as e:
             error_code = getattr(e, "response", {}).get("Error", {}).get("Code", "")
             if any(retryable in error_code for retryable in RETRYABLE_ERRORS):
