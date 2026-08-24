@@ -1,0 +1,235 @@
+{
+  "nonces": {
+    "GxsTYN4Ivwo1DtxTdFUymw": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-14T08:48:52Z",
+      "expires_at": "2026-08-14T08:53:52Z",
+      "consumed_at": "2026-08-14T08:48:52Z"
+    },
+    "uPw5buhrIxUgsEG9kBzEmA": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T08:48:52Z",
+      "expires_at": "2026-08-14T08:53:52Z",
+      "consumed_at": null
+    },
+    "P8bZfjE1rYB9XXR7iYB5vA": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T08:48:52Z",
+      "expires_at": "2026-08-14T08:53:52Z",
+      "consumed_at": "2026-08-14T08:48:52Z"
+    },
+    "DWICEgNdofJL8eEVBSKAfg": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:02:12Z",
+      "expires_at": "2026-08-14T09:07:12Z",
+      "consumed_at": "2026-08-14T09:02:12Z"
+    },
+    "g9Xh0AX8OVrfg8eedjZu-A": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:02:13Z",
+      "expires_at": "2026-08-14T09:07:13Z",
+      "consumed_at": null
+    },
+    "lcmo1N-n6sK1z3GXK-IvyQ": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T09:02:13Z",
+      "expires_at": "2026-08-14T09:07:13Z",
+      "consumed_at": "2026-08-14T09:02:13Z"
+    },
+    "BmrbRyd4UOguoR1qaD3h4Q": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:14:24Z",
+      "expires_at": "2026-08-14T09:19:24Z",
+      "consumed_at": null
+    },
+    "lymcLqF2ssVMPGsa_haw3A": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:14:24Z",
+      "expires_at": "2026-08-14T09:19:24Z",
+      "consumed_at": null
+    },
+    "bD-Z51OFEOS8wclccaKjtQ": {
+      "status": "pending",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T09:14:24Z",
+      "expires_at": "2026-08-14T09:19:24Z",
+      "consumed_at": null
+    },
+    "k8RBgtXrhVtAWnJ1Ya3SSw": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:17:39Z",
+      "expires_at": "2026-08-14T09:22:39Z",
+      "consumed_at": "2026-08-14T09:17:39Z"
+    },
+    "Qc4Q893zmOfDbXWAQLS1sg": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:17:39Z",
+      "expires_at": "2026-08-14T09:22:39Z",
+      "consumed_at": null
+    },
+    "Pf-_UiqW2qgOK0wZFjVTEQ": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T09:17:39Z",
+      "expires_at": "2026-08-14T09:22:39Z",
+      "consumed_at": "2026-08-14T09:17:39Z"
+    },
+    "Is80Lw4nl5lWWhhjH023GQ": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:24:13Z",
+      "expires_at": "2026-08-14T09:29:13Z",
+      "consumed_at": "2026-08-14T09:24:13Z"
+    },
+    "KnADvxAebsKC6PidX-LsHw": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:24:13Z",
+      "expires_at": "2026-08-14T09:29:13Z",
+      "consumed_at": null
+    },
+    "4B-L0hJVGy2ZjPLsTwA9kg": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T09:24:13Z",
+      "expires_at": "2026-08-14T09:29:13Z",
+      "consumed_at": "2026-08-14T09:24:13Z"
+    },
+    "fzyWKI7zHMPQJaKnBoFoCQ": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:28:13Z",
+      "expires_at": "2026-08-14T09:33:13Z",
+      "consumed_at": "2026-08-14T09:28:13Z"
+    },
+    "ZU8aqSTILxYYwAbf9C1XoA": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-14T09:28:13Z",
+      "expires_at": "2026-08-14T09:33:13Z",
+      "consumed_at": null
+    },
+    "K-9yVUoeRWVpwe6d65nSYA": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-14T09:28:13Z",
+      "expires_at": "2026-08-14T09:33:13Z",
+      "consumed_at": "2026-08-14T09:28:13Z"
+    },
+    "YawcN02WxixPAfM68AOIdQ": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-17T08:46:37Z",
+      "expires_at": "2026-08-17T08:51:37Z",
+      "consumed_at": "2026-08-17T08:46:37Z"
+    },
+    "dtCv7W-bMVxApv9imG72yw": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-17T08:46:37Z",
+      "expires_at": "2026-08-17T08:51:37Z",
+      "consumed_at": null
+    },
+    "fr2QFzWjfUcjxYv30HCnnA": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-17T08:46:37Z",
+      "expires_at": "2026-08-17T08:51:37Z",
+      "consumed_at": "2026-08-17T08:46:37Z"
+    },
+    "telMqZ_hNLvop7qsUTBIyQ": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-18T09:56:42Z",
+      "expires_at": "2026-08-18T10:01:42Z",
+      "consumed_at": "2026-08-18T09:56:42Z"
+    },
+    "MRJKoiMEFtJPAlAta0NuQw": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-18T09:56:42Z",
+      "expires_at": "2026-08-18T10:01:42Z",
+      "consumed_at": null
+    },
+    "Fw2WBDOkwn0EFN3_6f80HA": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-18T09:56:42Z",
+      "expires_at": "2026-08-18T10:01:42Z",
+      "consumed_at": "2026-08-18T09:56:42Z"
+    },
+    "f4hZxzGY0254NIq8bQlFWw": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-20T09:19:28Z",
+      "expires_at": "2026-08-20T09:24:28Z",
+      "consumed_at": "2026-08-20T09:19:28Z"
+    },
+    "26HT5uW9tGF4wH8KeQvbjw": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-20T09:19:28Z",
+      "expires_at": "2026-08-20T09:24:28Z",
+      "consumed_at": null
+    },
+    "E00WP54sxc08UO7XE6CGmg": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-20T09:19:28Z",
+      "expires_at": "2026-08-20T09:24:28Z",
+      "consumed_at": "2026-08-20T09:19:28Z"
+    },
+    "B_Z_AjW7_JQHDxweI3UD3Q": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-20T09:42:15Z",
+      "expires_at": "2026-08-20T09:47:15Z",
+      "consumed_at": "2026-08-20T09:42:15Z"
+    },
+    "1T4uFAvVSKPRAFgqDGBaHg": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-20T09:42:15Z",
+      "expires_at": "2026-08-20T09:47:15Z",
+      "consumed_at": null
+    },
+    "h4JeylMzku46sTEAIAU3GQ": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-20T09:42:15Z",
+      "expires_at": "2026-08-20T09:47:15Z",
+      "consumed_at": "2026-08-20T09:42:15Z"
+    },
+    "XnyzkwI3IXJRwyiGxufrqw": {
+      "status": "consumed",
+      "audience": "sf",
+      "issued_at": "2026-08-24T09:00:59Z",
+      "expires_at": "2026-08-24T09:05:59Z",
+      "consumed_at": "2026-08-24T09:00:59Z"
+    },
+    "DXVVzoX46QX5BmFuNmFCbQ": {
+      "status": "pending",
+      "audience": "sf",
+      "issued_at": "2026-08-24T09:00:59Z",
+      "expires_at": "2026-08-24T09:05:59Z",
+      "consumed_at": null
+    },
+    "b7hQ9pvLV3IdlFJxyyQQpg": {
+      "status": "consumed",
+      "audience": "signal-forge-dapp",
+      "issued_at": "2026-08-24T09:00:59Z",
+      "expires_at": "2026-08-24T09:05:59Z",
+      "consumed_at": "2026-08-24T09:00:59Z"
+    }
+  }
+}

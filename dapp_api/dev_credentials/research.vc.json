@@ -1,0 +1,20 @@
+{
+  "id": "urn:uuid:e11509dfcf98b3105b14fe1f8dd44c76",
+  "type": "SignalForgeCredential",
+  "issuer": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL",
+  "issuanceDate": "2026-08-11T08:38:01Z",
+  "expirationDate": "2027-08-11T08:38:01Z",
+  "credentialSubject": {
+    "id": "did:key:z6MksWkEok4U5cVaRinJTU9kLduiD8MmiCHiA6p6Vt7HELa5",
+    "credentialType": "ResearchPartner",
+    "name": "Riley Research",
+    "org": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL",
+    "credentialId": "urn:uuid:e11509dfcf98b3105b14fe1f8dd44c76"
+  },
+  "proof": {
+    "type": "SfEd25519Envelope2026-interim",
+    "created": "2026-08-11T08:38:01Z",
+    "verificationMethod": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL#key-1",
+    "signature": "nLSCf2GhjfSCcOAXmi3KVLSt9TbOIAAJpUqIZQ600jGZW2UWdGHwE9YpGN_oCRSVrkJu6U9uX_RCSFyth9OyAg"
+  }
+}

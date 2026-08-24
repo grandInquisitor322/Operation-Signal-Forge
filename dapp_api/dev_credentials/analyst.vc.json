@@ -1,0 +1,20 @@
+{
+  "id": "urn:uuid:dbec5e39ea6dc6fc088c1344413b8624",
+  "type": "SignalForgeCredential",
+  "issuer": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL",
+  "issuanceDate": "2026-08-11T08:38:01Z",
+  "expirationDate": "2027-08-11T08:38:01Z",
+  "credentialSubject": {
+    "id": "did:key:z6MkoX7krU9azGZQAuahs22jKAqKBBNMUmXMnadWJUuyUWtU",
+    "credentialType": "HumanitarianAnalyst",
+    "name": "Alex Analyst",
+    "org": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL",
+    "credentialId": "urn:uuid:dbec5e39ea6dc6fc088c1344413b8624"
+  },
+  "proof": {
+    "type": "SfEd25519Envelope2026-interim",
+    "created": "2026-08-11T08:38:01Z",
+    "verificationMethod": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL#key-1",
+    "signature": "bBDkJzS1zdxaKpwJIdRqLD-1VWvbA1liWI4mzUgwsTuPdH78bTnkHmCULo4oy4ev720UB7Wvh08ZsUD0HqwLCA"
+  }
+}

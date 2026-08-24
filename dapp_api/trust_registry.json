@@ -1,0 +1,35 @@
+[
+  {
+    "issuer_did": "did:key:z6MkfpaZmbaPCj1LgxS9yeNqpnL2NbFg568FdqPtsbeqMaBL",
+    "display_name": "Signal Forge Dev Issuer",
+    "status": "active",
+    "allowed_credential_types": [
+      "OrganizationMembership",
+      "HumanitarianAnalyst",
+      "IncidentCommander",
+      "ResearchPartner",
+      "SensorOperator"
+    ],
+    "revocation_method": "status_list",
+    "effective_from": "2026-08-07"
+  },
+  {
+    "issuer_did": "did:key:z6MkTestGovExample0000000000000000000001",
+    "display_name": "Test Org",
+    "organization": "",
+    "status": "proposed",
+    "allowed_credential_types": [],
+    "requested_credential_types": [
+      "HumanitarianAnalyst"
+    ],
+    "revocation_method": "status_list",
+    "proposed_at": "2026-08-12T08:35:39Z",
+    "proposed_by": "gov-admin",
+    "approved_at": null,
+    "approved_by": null,
+    "governance_reference": "",
+    "effective_from": null,
+    "last_reviewed_at": "2026-08-12T08:35:39Z",
+    "notes": "onboarding_request"
+  }
+]

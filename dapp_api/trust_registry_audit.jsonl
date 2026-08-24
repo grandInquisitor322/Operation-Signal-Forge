@@ -1,0 +1,1 @@
+{"action": "propose", "actor": "gov-admin", "allowed_credential_types": [], "audit_id": "7a53d21078308355", "authority": "ok_admin_list", "emergency": false, "governance_reference": "", "issuer_did": "did:key:z6MkTestGovExample0000000000000000000001", "previous_state": null, "reason": "onboarding_request", "resulting_state": "proposed", "timestamp": "2026-08-12T08:35:39Z"}

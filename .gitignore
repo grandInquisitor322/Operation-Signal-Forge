@@ -1,0 +1,7 @@
+
+# Dev identity keys — never commit
+dapp_api/dev_keys/*.pem
+dapp_api/dev_keys/*.json
+**/__pycache__/
+*.pyc
+.venv/

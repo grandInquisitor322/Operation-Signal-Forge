@@ -1,0 +1,14 @@
+                 Identity Runtime
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+          ▼                         ▼
+   Identity Audit Trail       Verification Record
+   (G4 governed)              (H1 governed)
+          │                         │
+   Security/audit events       Assurance evidence
+          │                         │
+          └────────────┬────────────┘
+                       │
+                   Separate
+                   authorities

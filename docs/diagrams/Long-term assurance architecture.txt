@@ -1,0 +1,14 @@
+                 Phase Engineering Lifecycle
+                            │
+                   Tests & Validation
+                            │
+               Independent Verification
+                            │
+             ┌──────────────┴──────────────┐
+             ▼                             ▼
+       Current Identity                Future ZKP
+        Controls                    / privacy proofs
+             │                             │
+             └──────────────┬──────────────┘
+                            ▼
+                    Architecture Audit

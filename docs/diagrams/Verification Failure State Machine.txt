@@ -1,0 +1,18 @@
+
+
+Verification Started
+        │
+        ▼
+   Evidence Collected
+        │
+   ┌────┼────┐
+   │    │    │
+ PASS PARTIAL FAIL
+   │    │    │
+   ▼    ▼    ▼
+Audit  Remediate  Stop
+       / Reverify
+            │
+            ▼
+       Verification
+          Again

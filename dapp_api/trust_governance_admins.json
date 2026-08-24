@@ -1,0 +1,10 @@
+{
+    "admins": [
+      {
+        "id": "gov-admin",
+        "name": "Local Trust Registry Admin",
+        "registered_at": "2026-08-11T00:00:00Z",
+        "registered_by": "bootstrap"
+      }
+    ]
+  }
