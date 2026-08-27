@@ -1,5 +1,3 @@
-Uber Dapp: Core Capability Layer, Trust Layer, Identity Layer. Features: AgentForge, ZKP.
-
 # Operational Signal Forge
 
 Ground-sensor fusion system for search-and-rescue (USAR) operations. Combines
@@ -127,3 +125,5 @@ publishing to IoT Core — keep the fusion engine's input contract stable.
 - Consider adding a structural engineer sign-off step before sending teams
   into a flagged cell — debris fields can be unstable, and the detection
   signal alone says nothing about secondary collapse risk.
+
+Uber Dapp: Core Capability Layer, Trust Layer, Identity Layer. Features: AgentForge, ZKP.
