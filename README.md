@@ -1,3 +1,5 @@
+Uber Dapp: Core Capability Layer, Trust Layer, Identity Layer. Features: AgentForge, ZKP.
+
 # Operational Signal Forge
 
 Ground-sensor fusion system for search-and-rescue (USAR) operations. Combines
