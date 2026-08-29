@@ -1,17 +1,26 @@
-# Operational Signal Forge
+# Operation Signal Forge
 
-Ground-sensor fusion system for search-and-rescue (USAR) operations. Combines
-**ground-penetrating radar**, **thermal/IR**, and **acoustic** sensor feeds
-into a single per-location "probability a person is present" score, displayed
-on a live geospatial dashboard for search team coordination.
+Ground-sensor fusion and decision-support stack for search-and-rescue (USAR) style operations. Multiple sensor modalities feed a **deterministic Fusion Engine**; optional **capability** and **identity** layers sit beside it without owning fusion, persistence, or alerting.
 
-This mirrors the sensor-fusion approach used by FEMA US&R / INSARAG teams in
-real collapse-structure search operations — multiple independent signal
-types corroborating each other is what turns a noisy single reading into an
-actionable lead.
+**Current baseline (repo):** Phase **3.2** closed — Disaster Context Authority & Responder Model packaged; gate **3.2 → 3.3 SATISFIED**. Next architectural stage: **3.3 Disaster Context Representation**. Zero-knowledge proofs are **defined and bounded**, not runtime-integrated yet.
 
-## How it works
+---
 
+## What it does
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Sensors → Fusion** | Radar, thermal, acoustic, celltower, Starlink → standardized scores → fused probability per geohash cell |
+| **Capability layer** | Advisory workflows (briefs, investigate, recommend sensor) via ports — not fusion or authz |
+| **Identity / AuthZ** | DIDs, VCs, trust registry, scopes → authorization **context** into capabilities |
+| **DApp prototype** | UX for login, investigations, briefs, trust registry (Phase 1 mock → AuthZ-backed API) |
+| **ZKP (Phase 3.x)** | Use case + authority model only through **3.2**; no proof circuit or verifier runtime in-tree yet |
+
+**Invariant:** ZKP proof validity ≠ authorization. The **Authorization Matrix** remains the decision authority for actions.
+
+---
+
+## Core fusion path
 ```
 Field sensor units (GPR / thermal / acoustic)
         │  MQTT (signal-forge/sensors/{id}/reading)
@@ -37,42 +46,59 @@ Field sensor units (GPR / thermal / acoustic)
            Leaflet map, heatmap, cell status tracking
 ```
 
-### Why geohash grid cells, not raw sensor pings
 
-Multiple sensor passes over the same spot need to accumulate into one
-combined score. Geohashing each reading's lat/lon (precision 8, ~19m × 19m)
-gives every reading from that physical location the same DynamoDB key, so
-new sensor sweeps update an existing cell's confidence instead of creating
-disconnected points.
+### Why geohash cells
 
-### Scoring logic (`lambda/fusion_engine.py`)
+Multiple passes over the same place must accumulate. Geohashing lat/lon (e.g. precision 8, ~19 m × 19 m) gives a stable DynamoDB key so new readings update confidence instead of scattering points.
 
-- **Radar** — flags a sub-surface void plus checks for micro-Doppler motion
-  in the breathing band (0.15–0.6 Hz) or cardiac band (0.8–2 Hz). This is the
-  actual physical basis real through-rubble radar systems use to find live
-  victims vs. empty voids.
-- **Thermal** — looks for a body-temperature delta (3–8°C above ambient) at
-  a plausible body-part-sized area.
-- **Acoustic** — rhythmic tapping or detected voice patterns, discounted in
-  low signal-to-noise conditions.
-- **Fusion** — weighted average of the three, **plus a corroboration bonus**
-  when 2 or 3 modalities agree on the same cell. This is the most important
-  design choice: a single strong radar return is much weaker evidence than a
-  weaker radar return that's corroborated by thermal and acoustic.
+### Fusion design notes
 
-These weights and thresholds are starting heuristics. Tune them against your
-field units' actual calibration data — a different radar model or thermal
-camera will have a different "true positive" signature, and you should
-validate against any known historical detections before trusting the
-high-confidence threshold in the field.
+- **Radar / thermal / acoustic** — modality-specific scoring; corroboration bonus when multiple modalities agree.
+- **Starlink** — dedicated module (`lambda_sensors_starlink.process()`); Fusion only orchestrates.
+- **Celltower** — optional OpenCellID enrichment; not ground-truth GNSS.
+- Weights are **heuristics** — validate against field calibration before operational high-confidence thresholds.
 
-## Deploying
+This is a **triage aid**, not a substitute for trained teams, canine units, or structural safety protocols.
+
+---
+
+## Major components (repo map)
+
+| Path | Role |
+|------|------|
+| `lambda/` | Fusion engine, sensor modules, dashboard API |
+| `capability_layer/` | Advisory capabilities + ports/adapters |
+| `identity_runtime/` | DID/VC presentation, trust, recovery policy, verification levels |
+| `dapp/` + `dapp_api/` | Humanitarian DApp prototype + AuthZ API |
+| `docs/architecture/` | ADRs, ZKP packages, identity, checklists/specs |
+| `docs/compliance/` | Compliance assessments + ZKP carry-forward / checklists |
+| `docs/milestones/` | Phase closure records |
+| `Daytona/` | Non-prod sandbox tests |
+| `infra/` | SAM/deploy templates |
+
+**License:** Apache-2.0 (root `LICENSE`). See `docs/compliance/third-party-apis-and-licenses.md`.
+
+---
+
+## Architecture status (Phase 3.x)
+
+| Phase | Outcome |
+|-------|---------|
+| **3.0** | Cryptographic objective & privacy/success boundary (definition only) |
+| **3.1** | Single proof use case + design principles (min disclosure, context-bound, proof ≠ authz) |
+| **3.2** | Authority model packaged (incident / qualification / assignment / Matrix / ZKP verifier); **SATISFIED** |
+| **3.3+** | Context representation → witness/public inputs → protocol → runtime (not done) |
+
+Standing compliance orientation: `docs/compliance/zkp-compliance-carry-forward.md`.
+
+---
+
+## Deploying (fusion baseline)
 
 ```bash
 cd infra
 sam build
 sam deploy --guided
-# Follow the prompts; set AlertEmail to your team-lead's email
 ```
 
 After deploy:
@@ -83,6 +109,7 @@ After deploy:
    aws s3 sync dashboard/ s3://signal-forge-dashboard-<account-id>/
    ```
 4. Open the `DashboardUrl` output in a browser.
+
 
 ## Testing without real field hardware
 
