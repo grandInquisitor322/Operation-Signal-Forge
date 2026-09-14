@@ -1,0 +1,92 @@
+[
+  {
+    "test_id": "E-01",
+    "scenario": "valid positive verified claim",
+    "expected_result": "AUTHZ_PERMITTED",
+    "observed_result": "AUTHZ_PERMITTED",
+    "authorization_decision": true,
+    "had_positive_verified_claim": true,
+    "denial_or_grant_reason": "verified_eligibility_claim_accepted"
+  },
+  {
+    "test_id": "E-02",
+    "scenario": "missing proof",
+    "expected_result": "denied",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-03",
+    "scenario": "invalid proof; favorable role/scopes",
+    "expected_result": "denied",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-04",
+    "scenario": "failed verification + raw credential",
+    "expected_result": "denied",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-05",
+    "scenario": "no valid positive claim from unsuccessful result",
+    "expected_result": "AUTHZ_DENIED_NO_CLAIM",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-06",
+    "scenario": "unsuccessful verification + force/default allow",
+    "expected_result": "denied",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-07",
+    "scenario": "direct matrix request without verified claim",
+    "expected_result": "AUTHZ_DENIED_NO_CLAIM",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  },
+  {
+    "test_id": "E-08",
+    "scenario": "explicit false claim and null claim",
+    "expected_result": "denied",
+    "observed_result": "AUTHZ_DENIED_CLAIM_FALSE/AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "claim_not_positive"
+  },
+  {
+    "test_id": "E-09",
+    "scenario": "positive-looking claim with wrong source",
+    "expected_result": "AUTHZ_DENIED_CLAIM_MALFORMED",
+    "observed_result": "AUTHZ_DENIED_CLAIM_MALFORMED",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "claim_unusable_or_wrong_source"
+  },
+  {
+    "test_id": "E-10",
+    "scenario": "failed verification does not assert ineligibility; denies authz",
+    "expected_result": "denied; NOT_ASSERTED ineligibility",
+    "observed_result": "AUTHZ_DENIED_NO_CLAIM",
+    "authorization_decision": false,
+    "had_positive_verified_claim": false,
+    "denial_or_grant_reason": "missing_verified_eligibility_claim"
+  }
+]
