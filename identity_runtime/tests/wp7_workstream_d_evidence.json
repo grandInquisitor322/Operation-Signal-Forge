@@ -26,14 +26,14 @@
   {
     "test_id": "NEG-C1-03",
     "failure_condition": "Point off-curve / subgroup validation failure on A",
-    "setup": "empty proof_bytes",
-    "exact_input_mutation": "proof_bytes=b''",
-    "command": "verify_proof(empty)",
+    "setup": "BN254 G1 A=(1,1) off y^2=x^3+3; VALID payload retained",
+    "exact_input_mutation": "b\"SFG16A:1:1:VALID:context_id='SF-2026-001'|incide\"",
+    "command": "verify_proof(off-curve A)",
     "observed_result": "REJECT",
     "status_code": "MALFORMED_PROOF",
     "verified_eligibility_claim": false,
     "authorization_outcome": "denied",
-    "crypto_boundary": "mock MALFORMED; no real curve check"
+    "crypto_boundary": "BN254 G1 affine on-curve + [r]P; no pairing"
   },
   {
     "test_id": "NEG-C2-01",
@@ -50,14 +50,14 @@
   {
     "test_id": "NEG-C2-02",
     "failure_condition": "Malformed field scalar x_i >= p",
-    "setup": "_malformed flag (no field prime in mock stack)",
-    "exact_input_mutation": "_malformed=True",
-    "command": "verify_proof(malformed)",
+    "setup": "allowlisted incident_type set to BN254 Fr order r (no reduction)",
+    "exact_input_mutation": "incident_type=21888242871839275222246405745257275088548364400416034343698204186575808495617 (>= r)",
+    "command": "verify_proof(x_i>=p)",
     "observed_result": "REJECT",
     "status_code": "MALFORMED_CONDITION",
     "verified_eligibility_claim": false,
     "authorization_outcome": "denied",
-    "crypto_boundary": "mock \u2014 no p"
+    "crypto_boundary": "BN254 Fr; reject x_i>=r with no mod-r"
   },
   {
     "test_id": "NEG-C2-03",

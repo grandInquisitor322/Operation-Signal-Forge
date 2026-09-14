@@ -24,6 +24,11 @@ from identity_runtime.zk_abstraction.result_taxonomy import (
     classify_acceptance,
     classify_from_status_reason,
 )
+from identity_runtime.zk_abstraction.bn254 import (
+    first_public_scalar_out_of_range,
+    parse_g1_proof,
+    validate_g1_affine,
+)
 from identity_runtime.zk_abstraction.c4_policy_wrapper import (
     VerifierPolicyContext,
     c4_to_condition,
@@ -134,6 +139,10 @@ def _legacy_status(
         "claim_mismatch": "WRONG_CLAIM",
         "binding_mismatch": "BINDING_MISMATCH",
         "empty_proof": "MALFORMED_PROOF",
+        "g1_a_off_curve": "MALFORMED_PROOF",
+        "g1_a_not_in_subgroup": "MALFORMED_PROOF",
+        "g1_a_coordinate_out_of_range": "MALFORMED_PROOF",
+        "g1_a_malformed_encoding": "MALFORMED_PROOF",
         "scheme_proof_check_failed": "INVALID_PROOF",
         "no_binding": "UNVERIFIABLE_CONDITION",
         "ambiguous": "AMBIGUOUS_CONDITION",
@@ -157,6 +166,8 @@ def _legacy_status(
         if cr.outcome != ConditionOutcome.PASS:
             if cr.reason in reason_map:
                 return reason_map[cr.reason], cr.reason
+            if cr.reason.startswith("scalar_ge_field_order:"):
+                return "MALFORMED_CONDITION", cr.reason
             if cr.reason.startswith("missing:"):
                 return "MISSING_CONDITION", cr.reason
             if cr.reason.startswith("forbidden_public_key:") or cr.reason.startswith(
@@ -311,6 +322,14 @@ class IndependentVerifier:
             return _cr(ConditionId.C2, ConditionOutcome.UNVERIFIABLE, "unverifiable")
         if public.get("_malformed"):
             return _cr(ConditionId.C2, ConditionOutcome.MALFORMED, "malformed")
+        out = first_public_scalar_out_of_range(public)
+        if out is not None:
+            key, xi = out
+            return _cr(
+                ConditionId.C2,
+                ConditionOutcome.MALFORMED,
+                f"scalar_ge_field_order:{key}:x_i={xi}",
+            )
         return _cr(ConditionId.C2, ConditionOutcome.PASS, "ok")
 
     def _eval_c3(
@@ -390,9 +409,21 @@ class IndependentVerifier:
             return _cr(ConditionId.C1, ConditionOutcome.UNVERIFIABLE, "no_binding")
         if not request.proof_bytes:
             return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
+        proof_for_check = request.proof_bytes
+        try:
+            g1 = parse_g1_proof(request.proof_bytes)
+        except ValueError as e:
+            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, str(e))
+        if g1 is not None:
+            g1_reason = validate_g1_affine(g1.x, g1.y)
+            if g1_reason:
+                return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, g1_reason)
+            proof_for_check = g1.payload
+            if not proof_for_check:
+                return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
         try:
             ok = self.proof_check(
-                request.proof_bytes, binding, request.verifier_visible_inputs
+                proof_for_check, binding, request.verifier_visible_inputs
             )
         except Exception as e:  # noqa: BLE001
             return _cr(ConditionId.C1, ConditionOutcome.UNVERIFIABLE, str(e))

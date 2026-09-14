@@ -1,6 +1,10 @@
 # Copyright 2026 Operation Signal Forge contributors
 # Licensed under the Apache License, Version 2.0
-"""WP7-CAND-01R1 Workstream D — SF-3.5-CONF-3 14-case negative suite (mock C1 boundary)."""
+"""WP7-CAND-01R1 Workstream D — SF-3.5-CONF-3 14-case negative suite.
+
+NEG-C1-03 / NEG-C2-02 use the BN254 affine G1 + Fr kernel on the verifier path.
+Pairing evaluation remains mock.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +18,10 @@ from typing import Any, Dict, List
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from identity_runtime.zk_abstraction.bn254 import (
+    BN254_R,
+    encode_g1_proof,
+)
 from identity_runtime.zk_abstraction.binder import ContextClaimBinder
 from identity_runtime.zk_abstraction.c4_policy_wrapper import VerifierPolicyContext
 from identity_runtime.zk_abstraction.identity import IdentityTuple
@@ -161,19 +169,25 @@ class WorkstreamDNegative14(unittest.TestCase):
         )
 
     def test_NEG_C1_03(self):
-        r = _v(proof=b"", public=_pub())
+        pub = _pub()
+        # A = (1, 1) is in Fp×Fp but y^2 ≠ x^3+3 (1 ≠ 4). Payload is otherwise valid
+        # so rejection cannot be empty-proof or mock fingerprint mismatch.
+        mut = encode_g1_proof(1, 1, _proof(pub))
+        r = _v(proof=mut, public=pub)
         _rej(r, "NEG-C1-03")
+        self.assertEqual(r.status_code, "MALFORMED_PROOF")
+        self.assertEqual(r.reason, "g1_a_off_curve")
         _rec(
             test_id="NEG-C1-03",
             failure_condition="Point off-curve / subgroup validation failure on A",
-            setup="empty proof_bytes",
-            exact_input_mutation="proof_bytes=b''",
-            command="verify_proof(empty)",
+            setup="BN254 G1 A=(1,1) off y^2=x^3+3; VALID payload retained",
+            exact_input_mutation=repr(mut[:48]),
+            command="verify_proof(off-curve A)",
             observed_result="REJECT",
             status_code=r.status_code,
             verified_eligibility_claim=False,
             authorization_outcome="denied",
-            crypto_boundary="mock MALFORMED; no real curve check",
+            crypto_boundary="BN254 G1 affine on-curve + [r]P; no pairing",
         )
 
     def test_NEG_C2_01(self):
@@ -192,19 +206,23 @@ class WorkstreamDNegative14(unittest.TestCase):
         )
 
     def test_NEG_C2_02(self):
-        r = _v(public=_pub(_malformed=True))
+        # x_i = r (Fr order). Must reject; must not reduce to 0.
+        pub = _pub(incident_type=BN254_R)
+        r = _v(public=pub)
         _rej(r, "NEG-C2-02")
+        self.assertEqual(r.status_code, "MALFORMED_CONDITION")
+        self.assertTrue(r.reason.startswith("scalar_ge_field_order:incident_type:"))
         _rec(
             test_id="NEG-C2-02",
             failure_condition="Malformed field scalar x_i >= p",
-            setup="_malformed flag (no field prime in mock stack)",
-            exact_input_mutation="_malformed=True",
-            command="verify_proof(malformed)",
+            setup="allowlisted incident_type set to BN254 Fr order r (no reduction)",
+            exact_input_mutation=f"incident_type={BN254_R} (>= r)",
+            command="verify_proof(x_i>=p)",
             observed_result="REJECT",
             status_code=r.status_code,
             verified_eligibility_claim=False,
             authorization_outcome="denied",
-            crypto_boundary="mock — no p",
+            crypto_boundary="BN254 Fr; reject x_i>=r with no mod-r",
         )
 
     def test_NEG_C2_03(self):
