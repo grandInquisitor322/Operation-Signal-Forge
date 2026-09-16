@@ -2,9 +2,26 @@
 
 Ground-sensor fusion and decision-support stack for search-and-rescue (USAR) style operations. Multiple sensor modalities feed a **deterministic Fusion Engine**; optional **capability** and **identity** layers sit beside it without owning fusion, persistence, or alerting.
 
-**Current baseline (repo):** Phase **3.2** closed — Disaster Context Authority & Responder Model packaged; gate **3.2 → 3.3 SATISFIED**. Next architectural stage: **3.3 Disaster Context Representation**. Zero-knowledge proofs are **defined and bounded**, not runtime-integrated yet.
+The platform is evolving toward **PANGEA** — an Uber-DApp style surface over Operation Signal Forge: Core Capability Layer, Trust Layer, and Identity Layer (AgentForge, authorization isolation, and bounded ZKP design).
+
+**Current baseline (repo):** Phase **3.x** architecture in progress (context authority through Stage 3.5 abstraction / Gate 5 remediation workstreams). Zero-knowledge **proof validity is not authorization**; the **Authorization Matrix** remains the decision authority for actions.
 
 ---
+
+## Accountable autonomous intelligence
+
+Signal Forge is built so automation can assist operations **without becoming an unaccountable black box**.
+
+| Principle | How the infrastructure supports it |
+|-----------|-------------------------------------|
+| **Deterministic fusion** | The Fusion Engine scores and fuses sensor inputs with fixed, inspectable logic. It does not “decide” who may act. |
+| **Advisory capabilities** | AgentForge / capability layer produces briefs, investigations, and sensor recommendations as **decision support** — not commands and not writes to fusion state. |
+| **Authorization isolation** | Actions require an explicit **authorization context** (and, where ZK is used, a **positive verified eligibility claim**). Failed or missing verification never defaults to allow. |
+| **Proof ≠ permission** | Cryptographic or credential checks can support eligibility claims; **only the Authorization Matrix** grants operational permission. |
+| **Audit & verification** | Identity runtime records presentations, trust-registry changes, and verification evidence so humans can reconstruct *why* a path was allowed or denied. |
+| **Human command remains in the loop** | Cell status (`unassigned` → `searching` → `cleared` / `confirmed`) is updated by operators; the system narrows triage, it does not replace USAR command. |
+
+In short: sensors and models may propose; **infrastructure enforces separation of fusion, advice, proof, and permission** so autonomy stays accountable.
 
 ## What it does
 
@@ -25,7 +42,7 @@ Ground-sensor fusion and decision-support stack for search-and-rescue (USAR) sty
 Field sensor units (GPR / thermal / acoustic)
         │  MQTT (signal-forge/sensors/{id}/reading)
         ▼
-   AWS IoT Core  ──rule──▶  Kinesis Data Stream
+   AWS IoT Core  ──rule──▶ 
                                   │
                                   ▼
                        Lambda: fusion_engine.py
