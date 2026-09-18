@@ -2,6 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 """SF-3.5-VER-1..11 — Independent verification engine (fail-closed).
 WP7-CAND-01R1 Workstream A + F-1..F-5 + Workstream B taxonomy.
+WP7-CAND-01R1.1 R-1 mandatory SFG16A path + R-2 canonical Fr scalars.
 """
 
 from __future__ import annotations
@@ -25,7 +26,9 @@ from identity_runtime.zk_abstraction.result_taxonomy import (
     classify_from_status_reason,
 )
 from identity_runtime.zk_abstraction.bn254 import (
-    first_public_scalar_out_of_range,
+    PROOF_G1_PREFIX,
+    first_public_scalar_violation,
+    parse_canonical_fr_decimal,
     parse_g1_proof,
     validate_g1_affine,
 )
@@ -139,6 +142,7 @@ def _legacy_status(
         "claim_mismatch": "WRONG_CLAIM",
         "binding_mismatch": "BINDING_MISMATCH",
         "empty_proof": "MALFORMED_PROOF",
+        "proof_format_required_sfg16a": "MALFORMED_PROOF",
         "g1_a_off_curve": "MALFORMED_PROOF",
         "g1_a_not_in_subgroup": "MALFORMED_PROOF",
         "g1_a_coordinate_out_of_range": "MALFORMED_PROOF",
@@ -166,7 +170,9 @@ def _legacy_status(
         if cr.outcome != ConditionOutcome.PASS:
             if cr.reason in reason_map:
                 return reason_map[cr.reason], cr.reason
-            if cr.reason.startswith("scalar_ge_field_order:"):
+            if cr.reason.startswith("scalar_ge_field_order:") or cr.reason.startswith(
+                "scalar_non_canonical_"
+            ):
                 return "MALFORMED_CONDITION", cr.reason
             if cr.reason.startswith("missing:"):
                 return "MISSING_CONDITION", cr.reason
@@ -322,13 +328,13 @@ class IndependentVerifier:
             return _cr(ConditionId.C2, ConditionOutcome.UNVERIFIABLE, "unverifiable")
         if public.get("_malformed"):
             return _cr(ConditionId.C2, ConditionOutcome.MALFORMED, "malformed")
-        out = first_public_scalar_out_of_range(public)
-        if out is not None:
-            key, xi = out
+        viol = first_public_scalar_violation(public, scalar_keys=("revision",))
+        if viol is not None:
+            key, err = viol
             return _cr(
                 ConditionId.C2,
                 ConditionOutcome.MALFORMED,
-                f"scalar_ge_field_order:{key}:x_i={xi}",
+                f"{err}:{key}",
             )
         return _cr(ConditionId.C2, ConditionOutcome.PASS, "ok")
 
@@ -375,11 +381,13 @@ class IndependentVerifier:
                 _cr(ConditionId.C3, ConditionOutcome.FAIL, "revision_missing"),
                 binding,
             )
-        elif rev_val != request.revision:
-            return (
-                _cr(ConditionId.C3, ConditionOutcome.FAIL, "revision_mismatch"),
-                binding,
-            )
+        else:
+            rev_parsed, rev_err = parse_canonical_fr_decimal(rev_val)
+            if rev_err is not None or rev_parsed != request.revision:
+                return (
+                    _cr(ConditionId.C3, ConditionOutcome.FAIL, "revision_mismatch"),
+                    binding,
+                )
 
         prop_val = _public_get(public, "eligibility_proposition")
         if prop_val is _MISSING:
@@ -405,22 +413,42 @@ class IndependentVerifier:
     def _eval_c1(
         self, request: VerificationRequest, binding: Optional[BindingTarget]
     ) -> ConditionResult:
+        """
+        R1.1-A: verifier-selected validation path only.
+        Required format SFG16A. Unprefixed proofs MUST NOT fall through
+        to legacy payload-equality acceptance.
+        """
         if binding is None:
             return _cr(ConditionId.C1, ConditionOutcome.UNVERIFIABLE, "no_binding")
         if not request.proof_bytes:
             return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
-        proof_for_check = request.proof_bytes
+
+        if not request.proof_bytes.startswith(PROOF_G1_PREFIX):
+            return _cr(
+                ConditionId.C1,
+                ConditionOutcome.MALFORMED,
+                "proof_format_required_sfg16a",
+            )
+
         try:
             g1 = parse_g1_proof(request.proof_bytes)
         except ValueError as e:
             return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, str(e))
-        if g1 is not None:
-            g1_reason = validate_g1_affine(g1.x, g1.y)
-            if g1_reason:
-                return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, g1_reason)
-            proof_for_check = g1.payload
-            if not proof_for_check:
-                return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
+        if g1 is None:
+            return _cr(
+                ConditionId.C1,
+                ConditionOutcome.MALFORMED,
+                "proof_format_required_sfg16a",
+            )
+
+        g1_reason = validate_g1_affine(g1.x, g1.y)
+        if g1_reason:
+            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, g1_reason)
+
+        proof_for_check = g1.payload
+        if not proof_for_check:
+            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
+
         try:
             ok = self.proof_check(
                 proof_for_check, binding, request.verifier_visible_inputs

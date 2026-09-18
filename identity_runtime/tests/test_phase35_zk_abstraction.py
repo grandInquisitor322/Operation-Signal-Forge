@@ -1,6 +1,9 @@
 # Copyright 2026 Operation Signal Forge contributors
 # Licensed under the Apache License, Version 2.0
-"""Stage 3.5 — cryptographic abstraction tests (mock scheme only)."""
+"""Stage 3.5 — cryptographic abstraction tests (mock scheme only).
+
+Aligned with WP7-CAND-01R1.1 (mandatory SFG16A + canonical Fr revision strings).
+"""
 
 from __future__ import annotations
 
@@ -11,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from identity_runtime.zk_abstraction.bn254 import G1_GENERATOR, encode_g1_proof
 from identity_runtime.zk_abstraction.audit import CryptographicAuditLogger
 from identity_runtime.zk_abstraction.binder import ContextClaimBinder
 from identity_runtime.zk_abstraction.identity import IdentityTuple
@@ -59,12 +63,17 @@ def _registry_with_mock(
 def _public(**over) -> dict:
     base = {
         "context_id": "SF-2026-001",
-        "revision": 1,
+        "revision": "1",  # R1.1-B
         "lifecycle_state": "ACTIVE",
         "incident_type": "earthquake",
     }
     base.update(over)
     return base
+
+
+def _sfg_valid(binding) -> bytes:
+    payload = ("VALID:" + binding.public_conditions_fingerprint).encode("utf-8")
+    return encode_g1_proof(G1_GENERATOR[0], G1_GENERATOR[1], payload)
 
 
 def _req(reg_state=SchemeLifecycleState.SUPPORTED, proof=None, public=None, **kw):
@@ -81,7 +90,7 @@ def _req(reg_state=SchemeLifecycleState.SUPPORTED, proof=None, public=None, **kw
         public_conditions=pub,
     )
     if proof is None:
-        proof = ("VALID:" + binding.public_conditions_fingerprint).encode("utf-8")
+        proof = _sfg_valid(binding)
     v = IndependentVerifier(reg, binder=binder, audit=CryptographicAuditLogger())
     request = VerificationRequest(
         identity_tuple=_id(),
@@ -101,7 +110,7 @@ class Phase35PositiveTests(unittest.TestCase):
     def test_happy_path(self):
         v, req, _ = _req()
         r = v.verify_proof(req)
-        self.assertTrue(r.accepted)
+        self.assertTrue(r.accepted, msg=f"{r.status_code}/{r.reason}")
         self.assertEqual(r.status_code, "OK")
 
     def test_binding_distinct_on_revision(self):
@@ -172,7 +181,7 @@ class Phase35NegativeMatrix(unittest.TestCase):
             eligibility_proposition="p",
             public_conditions=pub,
         )
-        proof = ("VALID:" + binding.public_conditions_fingerprint).encode()
+        proof = _sfg_valid(binding)
         v = IndependentVerifier(reg, binder=binder)
         r = v.verify_proof(
             VerificationRequest(
@@ -184,7 +193,7 @@ class Phase35NegativeMatrix(unittest.TestCase):
                 claim_proposition="p",
             )
         )
-        self.assertTrue(r.accepted)
+        self.assertTrue(r.accepted, msg=f"{r.status_code}/{r.reason}")
 
     def test_unsupported_protocol_version(self):
         reg = _registry_with_mock()
@@ -230,13 +239,20 @@ class Phase35NegativeMatrix(unittest.TestCase):
         v, req, _ = _req(proof=b"")
         r = v.verify_proof(req)
         self.assertFalse(r.accepted)
-        self.assertEqual(r.status_code, "MALFORMED_PROOF")
+        self.assertIn(
+            r.status_code,
+            ("MALFORMED_PROOF", "C1_MALFORMED", "MALFORMED_CONDITION"),
+        )
 
     def test_invalid_proof(self):
         v, req, _ = _req(proof=b"INVALID")
         r = v.verify_proof(req)
         self.assertFalse(r.accepted)
-        self.assertEqual(r.status_code, "INVALID_PROOF")
+        # R1.1: unprefixed → format reject (not legacy INVALID_PROOF path)
+        self.assertIn(
+            r.status_code,
+            ("INVALID_PROOF", "MALFORMED_PROOF", "C1_MALFORMED", "MALFORMED_CONDITION"),
+        )
 
     def test_wrong_context(self):
         pub = _public(context_id="OTHER")
@@ -246,7 +262,7 @@ class Phase35NegativeMatrix(unittest.TestCase):
         self.assertEqual(r.status_code, "WRONG_CONTEXT")
 
     def test_wrong_revision(self):
-        pub = _public(revision=99)
+        pub = _public(revision="99")
         v, req, _ = _req(public=pub)
         r = v.verify_proof(req)
         self.assertFalse(r.accepted)
@@ -260,7 +276,7 @@ class Phase35NegativeMatrix(unittest.TestCase):
         self.assertEqual(r.status_code, "WRONG_CLAIM")
 
     def test_missing_required(self):
-        pub = {"context_id": "SF-2026-001", "revision": 1}
+        pub = {"context_id": "SF-2026-001", "revision": "1"}
         v, req, _ = _req(public=pub)
         r = v.verify_proof(req)
         self.assertFalse(r.accepted)

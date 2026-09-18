@@ -1,0 +1,170 @@
+[
+  {
+    "test_id": "R1-05a",
+    "finding": "R-1",
+    "scenario": "b''",
+    "observed": "MALFORMED_PROOF",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R1-05b",
+    "finding": "R-1",
+    "scenario": "b'\\x00\\x01'",
+    "observed": "MALFORMED_PROOF",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R1-03",
+    "finding": "R-1",
+    "scenario": "malformed SFG16A encoding",
+    "observed": "MALFORMED_PROOF/g1_a_malformed_encoding",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R1-02",
+    "finding": "R-1",
+    "scenario": "unprefixed VALID: must not legacy-accept",
+    "observed": "MALFORMED_PROOF/proof_format_required_sfg16a",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R1-04",
+    "finding": "R-1",
+    "scenario": "unrecognized prefix cannot select path",
+    "observed": "MALFORMED_PROOF/proof_format_required_sfg16a",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R1-01",
+    "finding": "R-1",
+    "scenario": "valid SFG16A + on-curve A + valid payload",
+    "observed": "OK",
+    "accepted": true,
+    "verified_claim": true
+  },
+  {
+    "test_id": "R2-15",
+    "finding": "R-2",
+    "scenario": "x == r-1 in range",
+    "observed": "OK/all_C1_C4_PASS/accepted=True",
+    "accepted": true,
+    "verified_claim": true
+  },
+  {
+    "test_id": "R2-01",
+    "finding": "R-2",
+    "scenario": "revision=\"1\" canonical",
+    "observed": "OK",
+    "accepted": true,
+    "verified_claim": true
+  },
+  {
+    "test_id": "R2-02",
+    "finding": "R-2",
+    "scenario": "revision=1 (int)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_type:int:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-03",
+    "finding": "R-2",
+    "scenario": "revision=1.0 (float)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_type:float:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-04",
+    "finding": "R-2",
+    "scenario": "revision=True (bool)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_type:bool:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-05",
+    "finding": "R-2",
+    "scenario": "revision='+1' (plus)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_charset:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-06",
+    "finding": "R-2",
+    "scenario": "revision='-1' (minus)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_charset:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-07",
+    "finding": "R-2",
+    "scenario": "revision='01' (leading_zero)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_leading_zero:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-08",
+    "finding": "R-2",
+    "scenario": "revision='001' (leading_zeros)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_leading_zero:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-09",
+    "finding": "R-2",
+    "scenario": "revision='1.0' (decimal)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_charset:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-10",
+    "finding": "R-2",
+    "scenario": "revision='1e3' (exponent)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_charset:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-11",
+    "finding": "R-2",
+    "scenario": "revision=' 1' (ws_lead)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_whitespace:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-12",
+    "finding": "R-2",
+    "scenario": "revision='1 ' (ws_trail)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_whitespace:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-13",
+    "finding": "R-2",
+    "scenario": "revision='1,000' (separator)",
+    "observed": "MALFORMED_CONDITION/scalar_non_canonical_charset:revision",
+    "accepted": false,
+    "verified_claim": false
+  },
+  {
+    "test_id": "R2-14",
+    "finding": "R-2",
+    "scenario": "x == r rejected; no mod r",
+    "observed": "MALFORMED_CONDITION/scalar_ge_field_order:x_i=21888242871839275222246405745257275088548364400416034343698204186575808495617:revision",
+    "accepted": false,
+    "verified_claim": false
+  }
+]

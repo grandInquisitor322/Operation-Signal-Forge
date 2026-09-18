@@ -116,34 +116,66 @@ def parse_g1_proof(proof_bytes: bytes) -> Optional[G1ParseResult]:
     return G1ParseResult(x=int(xs), y=int(ys), payload=payload)
 
 
-def _int_scalar_candidate(value: object) -> Optional[int]:
-    if type(value) is int:
-        return value
-    if isinstance(value, str):
-        s = value.strip()
-        if s.startswith(("0x", "0X")):
-            try:
-                return int(s, 16)
-            except ValueError:
-                return None
-        if s.isdigit():
-            return int(s, 10)
+def parse_canonical_fr_decimal(value: object) -> tuple[Optional[int], Optional[str]]:
+    """
+    R1.1-B: verifier-visible Fr scalars MUST be canonical decimal strings.
+
+    - type is str only (no int/bool/float coercion)
+    - ASCII digits 0-9 only
+    - "0" is the sole representation of zero
+    - no leading zeros for nonzero values
+    - no +, -, decimal point, exponent, whitespace, separators
+    - after parse: 0 <= x < BN254_R (no silent mod r)
+
+    Returns (x, None) on success, (None, reason) on failure.
+    """
+    if type(value) is not str:
+        return None, f"scalar_non_canonical_type:{type(value).__name__}"
+    s = value
+    if any(ord(c) <= 32 for c in s):
+        return None, "scalar_non_canonical_whitespace"
+    if not s:
+        return None, "scalar_non_canonical_empty"
+    if any(c in s for c in "+-.,eE_,"):
+        return None, "scalar_non_canonical_charset"
+    if not s.isdigit():
+        return None, "scalar_non_canonical_charset"
+    if len(s) > 1 and s.startswith("0"):
+        return None, "scalar_non_canonical_leading_zero"
+    xi = int(s, 10)
+    if xi < 0:
+        return None, "scalar_negative"
+    if xi >= BN254_R:
+        return None, f"scalar_ge_field_order:x_i={xi}"
+    return xi, None
+
+
+def first_public_scalar_violation(
+    public: Mapping[str, object],
+    scalar_keys: tuple[str, ...] = ("revision",),
+) -> Optional[tuple[str, str]]:
+    """Validate designated verifier-visible scalar keys (R1.1-B)."""
+    for key in scalar_keys:
+        if key not in public:
+            continue
+        _xi, err = parse_canonical_fr_decimal(public[key])
+        if err is not None:
+            return key, err
     return None
 
 
 def first_public_scalar_out_of_range(
     public: Mapping[str, object],
 ) -> Optional[tuple[str, int]]:
-    """
-    Groth16 x_i ∈ Fr. Integers (and numeric strings) must satisfy 0 <= x_i < r.
-    No silent reduction modulo r.
-    """
-    for key, value in public.items():
-        if str(key).startswith("_"):
-            continue
-        xi = _int_scalar_candidate(value)
-        if xi is None:
-            continue
-        if xi < 0 or xi >= BN254_R:
-            return key, xi
+    """Back-compat: range-only view of scalar violations."""
+    v = first_public_scalar_violation(public)
+    if v is None:
+        return None
+    key, err = v
+    if err.startswith("scalar_ge_field_order:"):
+        try:
+            xi = int(err.rsplit("=", 1)[-1])
+        except ValueError:
+            xi = -1
+        return key, xi
     return None

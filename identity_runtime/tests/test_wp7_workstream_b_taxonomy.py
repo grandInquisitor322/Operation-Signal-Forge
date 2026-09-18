@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from identity_runtime.zk_abstraction.bn254 import G1_GENERATOR, encode_g1_proof
 from identity_runtime.zk_abstraction.acceptance import (
     ConditionId,
     ConditionOutcome,
@@ -69,7 +70,7 @@ def _reg():
 def _public():
     return {
         "context_id": "SF-2026-001",
-        "revision": 1,
+        "revision": "1",
         "lifecycle_state": "ACTIVE",
         "incident_type": "earthquake",
     }
@@ -164,7 +165,11 @@ class WorkstreamBTaxonomyTests(unittest.TestCase):
             eligibility_proposition="eligible responder for specified context",
             public_conditions=pub,
         )
-        proof = ("VALID:" + binding.public_conditions_fingerprint).encode()
+        proof = encode_g1_proof(
+            G1_GENERATOR[0],
+            G1_GENERATOR[1],
+            ("VALID:" + binding.public_conditions_fingerprint).encode(),
+        )
         v = IndependentVerifier(_reg(), binder=binder)
         r = v.verify_proof(
             VerificationRequest(
@@ -176,7 +181,7 @@ class WorkstreamBTaxonomyTests(unittest.TestCase):
                 claim_proposition="eligible responder for specified context",
             )
         )
-        self.assertTrue(r.accepted)
+        self.assertTrue(r.accepted, msg=f"{r.status_code}/{r.reason}")
         self.assertIsNotNone(r.taxonomy)
         self.assertEqual(
             r.taxonomy.outcome, VerificationOutcomeClass.VERIFIED_ELIGIBILITY

@@ -1,6 +1,9 @@
 # Copyright 2026 Operation Signal Forge contributors
 # Licensed under the Apache License, Version 2.0
-"""WP7-CAND-01R1 Workstream E — Authorization isolation tests."""
+"""WP7-CAND-01R1 Workstream E — Authorization isolation tests.
+
+Aligned with WP7-CAND-01R1.1 (mandatory SFG16A + canonical Fr revision strings).
+"""
 
 from __future__ import annotations
 
@@ -14,6 +17,7 @@ from typing import Any, Dict, List
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from identity_runtime.zk_abstraction.bn254 import G1_GENERATOR, encode_g1_proof
 from identity_runtime.zk_abstraction.authorization_isolation import (
     AuthorizationRequest,
     VerifiedEligibilityClaim,
@@ -44,11 +48,11 @@ class EvidenceRecord:
     denial_or_grant_reason: str
 
 
-def _ev(**kw):
+def _ev(**kw: Any) -> None:
     EVIDENCE.append(asdict(EvidenceRecord(**kw)))
 
 
-def _id():
+def _id() -> IdentityTuple:
     return IdentityTuple(
         protocol_id="sf-zk",
         protocol_version="1.0.0",
@@ -58,7 +62,7 @@ def _id():
     )
 
 
-def _reg():
+def _reg() -> CryptographicRegistry:
     r = CryptographicRegistry()
     r.register_scheme(
         SchemeDescriptor(
@@ -70,30 +74,32 @@ def _reg():
     return r
 
 
-def _pub():
+def _pub() -> Dict[str, Any]:
     return {
         "context_id": "SF-2026-001",
-        "revision": 1,
+        "revision": "1",  # R1.1-B canonical decimal string
         "lifecycle_state": "ACTIVE",
         "incident_type": "earthquake",
     }
 
 
-def _claim_text():
+def _claim_text() -> str:
     return "eligible responder for specified context"
 
 
-def _valid_proof(pub):
+def _valid_proof(pub: Dict[str, Any]) -> bytes:
     t = ContextClaimBinder().compute_target(
         context_id="SF-2026-001",
         revision=1,
         eligibility_proposition=_claim_text(),
         public_conditions=pub,
     )
-    return ("VALID:" + t.public_conditions_fingerprint).encode()
+    payload = ("VALID:" + t.public_conditions_fingerprint).encode()
+    # R1.1-A: mandatory SFG16A encoding
+    return encode_g1_proof(G1_GENERATOR[0], G1_GENERATOR[1], payload)
 
 
-def _verify(proof, public=None):
+def _verify(proof: bytes, public=None):
     public = public or _pub()
     return IndependentVerifier(_reg()).verify_proof(
         VerificationRequest(
@@ -108,10 +114,10 @@ def _verify(proof, public=None):
 
 
 class WorkstreamEAuthzIsolation(unittest.TestCase):
-    def test_E01_valid_positive_path(self):
+    def test_E01_valid_positive_path(self) -> None:
         pub = _pub()
         r = _verify(_valid_proof(pub), pub)
-        self.assertTrue(r.accepted)
+        self.assertTrue(r.accepted, msg=f"{r.status_code}/{r.reason}")
         d = authorize_from_verification(r)
         self.assertTrue(d.permitted)
         self.assertTrue(d.had_positive_verified_claim)
@@ -125,7 +131,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E02_missing_proof(self):
+    def test_E02_missing_proof(self) -> None:
         r = _verify(b"", _pub())
         self.assertFalse(r.accepted)
         d = authorize_from_verification(r)
@@ -141,7 +147,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E03_invalid_proof(self):
+    def test_E03_invalid_proof(self) -> None:
         r = _verify(b"INVALID_PROOF", _pub())
         self.assertFalse(r.accepted)
         d = authorize_from_verification(r, role="commander", scopes=("all",))
@@ -156,7 +162,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E04_failure_plus_raw_credential(self):
+    def test_E04_failure_plus_raw_credential(self) -> None:
         r = _verify(b"NOT_A_PROOF", _pub())
         d = authorize_from_verification(
             r, raw_credential={"type": "HumanitarianAnalyst", "token": "steal"}
@@ -173,7 +179,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E05_malformed_untrusted_result(self):
+    def test_E05_malformed_untrusted_result(self) -> None:
         claim = claim_from_verification(_verify(b"", _pub()))
         self.assertIsNone(claim)
         d = authorize(AuthorizationRequest(verified_claim=None))
@@ -188,7 +194,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E06_permissive_default_attempt(self):
+    def test_E06_permissive_default_attempt(self) -> None:
         r = _verify(b"BAD", _pub())
         d = authorize_from_verification(r, force_authorize=True, default_allow=True)
         self.assertFalse(d.permitted)
@@ -203,7 +209,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E07_direct_matrix_bypass(self):
+    def test_E07_direct_matrix_bypass(self) -> None:
         d = authorize(
             AuthorizationRequest(
                 verified_claim=None,
@@ -224,7 +230,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E08_false_and_none_claim(self):
+    def test_E08_false_and_none_claim(self) -> None:
         d_false = authorize(
             AuthorizationRequest(
                 verified_claim=VerifiedEligibilityClaim(
@@ -249,7 +255,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d_false.reason,
         )
 
-    def test_E09_claim_proof_mismatch_wrong_source(self):
+    def test_E09_claim_proof_mismatch_wrong_source(self) -> None:
         bad = VerifiedEligibilityClaim(
             positive=True,
             context_id="SF-2026-001",
@@ -271,7 +277,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
             denial_or_grant_reason=d.reason,
         )
 
-    def test_E10_failure_not_asserted_ineligible(self):
+    def test_E10_failure_not_asserted_ineligible(self) -> None:
         r = _verify(b"INVALID", _pub())
         self.assertFalse(r.accepted)
         if r.taxonomy is not None:
@@ -289,7 +295,7 @@ class WorkstreamEAuthzIsolation(unittest.TestCase):
         )
 
 
-def tearDownModule():
+def tearDownModule() -> None:
     out = ROOT / "identity_runtime" / "tests" / "wp7_workstream_e_evidence.json"
     try:
         out.write_text(json.dumps(EVIDENCE, indent=2), encoding="utf-8")
