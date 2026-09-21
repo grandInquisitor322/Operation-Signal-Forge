@@ -138,8 +138,8 @@ def parse_canonical_fr_decimal(value: object) -> tuple[Optional[int], Optional[s
         return None, "scalar_non_canonical_empty"
     if any(c in s for c in "+-.,eE_,"):
         return None, "scalar_non_canonical_charset"
-    if not s.isdigit():
-        return None, "scalar_non_canonical_charset"
+    if not all(c in "0123456789" for c in s): 
+        return None, "scalar_non_canonical_charset" 
     if len(s) > 1 and s.startswith("0"):
         return None, "scalar_non_canonical_leading_zero"
     xi = int(s, 10)

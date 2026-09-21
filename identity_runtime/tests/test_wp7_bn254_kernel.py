@@ -1,6 +1,9 @@
 # Copyright 2026 Operation Signal Forge contributors
 # Licensed under the Apache License, Version 2.0
-"""BN254 kernel checks backing NEG-C1-03 / NEG-C2-02 (no silent reduction)."""
+"""BN254 kernel checks backing NEG-C1-03 / NEG-C2-02 (no silent reduction).
+
+Aligned with WP7-CAND-01R1.1 (revision scalar scope + ASCII decimal).
+"""
 
 from __future__ import annotations
 
@@ -18,9 +21,11 @@ from identity_runtime.zk_abstraction.bn254 import (
     G1_GENERATOR,
     encode_g1_proof,
     first_public_scalar_out_of_range,
+    first_public_scalar_violation,
     g1_in_prime_subgroup,
     g1_on_curve,
     g1_scalar_mul,
+    parse_canonical_fr_decimal,
     parse_g1_proof,
     validate_g1_affine,
 )
@@ -59,20 +64,43 @@ class Bn254KernelTests(unittest.TestCase):
         self.assertTrue(g1_in_prime_subgroup(x, y))
 
     def test_public_scalar_eq_r_rejected_without_reduction(self):
-        hit = first_public_scalar_out_of_range({"incident_type": BN254_R})
-        self.assertEqual(hit[0], "incident_type")
-        self.assertEqual(hit[1], BN254_R)
-        self.assertNotEqual(BN254_R % BN254_R, BN254_R)
+        # R1.1-B: verifier-visible Fr scalar is revision (canonical decimal string)
+        hit = first_public_scalar_violation(
+            {"revision": str(BN254_R)}, scalar_keys=("revision",)
+        )
+        self.assertIsNotNone(hit)
+        self.assertEqual(hit[0], "revision")
+        self.assertTrue(
+            "field_order" in hit[1] or hit[1].startswith("scalar_ge_field_order"),
+            msg=hit[1],
+        )
+        # no modular reduction of r into a valid Fr element for this check
+        self.assertEqual(BN254_R % BN254_R, 0)
+        self.assertNotEqual(BN254_R, 0)
 
     def test_public_scalar_r_minus_one_in_range(self):
-        self.assertIsNone(
-            first_public_scalar_out_of_range({"incident_type": BN254_R - 1})
+        xi = BN254_R - 1
+        hit = first_public_scalar_violation(
+            {"revision": str(xi)}, scalar_keys=("revision",)
         )
+        self.assertIsNone(hit)
+        val, err = parse_canonical_fr_decimal(str(xi))
+        self.assertIsNone(err)
+        self.assertEqual(val, xi)
+
+    def test_ascii_only_rejects_unicode_digits(self):
+        # H-2: Arabic-Indic / fullwidth digits must not pass (str.isdigit would)
+        val, err = parse_canonical_fr_decimal("١")
+        self.assertIsNone(val)
+        self.assertIsNotNone(err)
+        val2, err2 = parse_canonical_fr_decimal("１０")
+        self.assertIsNone(val2)
+        self.assertIsNotNone(err2)
 
     def test_on_curve_a_with_valid_payload_accepted(self):
         pub = {
             "context_id": "SF-2026-001",
-            "revision": 1,
+            "revision": "1",  # R1.1-B canonical decimal string
             "lifecycle_state": "ACTIVE",
             "incident_type": "earthquake",
         }
@@ -114,7 +142,7 @@ class Bn254KernelTests(unittest.TestCase):
                 claim_proposition=claim,
             )
         )
-        self.assertTrue(r.accepted)
+        self.assertTrue(r.accepted, msg=f"{r.status_code}/{r.reason}")
         self.assertTrue(r.verified_eligibility_claim)
 
 
