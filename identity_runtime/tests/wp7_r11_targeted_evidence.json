@@ -19,7 +19,7 @@
     "test_id": "R1-03",
     "finding": "R-1",
     "scenario": "malformed SFG16A encoding",
-    "observed": "MALFORMED_PROOF/g1_a_malformed_encoding",
+    "observed": "MALFORMED_PROOF/proof_parse_error:g1_a_malformed_encoding",
     "accepted": false,
     "verified_claim": false
   },
