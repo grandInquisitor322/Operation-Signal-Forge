@@ -50,11 +50,11 @@ This adjudication evaluates `WP7-CAND-01R1.1` strictly against the governing Sta
 ### 2.2 Authoritative Materials
 The evidence set reviewed for this adjudication comprises:
 1. **Normative Specification & Remediation Documentation**:
-   - `docs/architecture/design-principles/cryptographic-principles/WP-7/R1 Remediation/Gate 5 Re-Adjudication Handoff.md`
-   - `docs/architecture/design-principles/cryptographic-principles/WP-7/R1 Remediation/WP7-CAND-01R1_Gate5_Remediation_Status_UPDATED.md`
-   - `docs/roadmap/WP7-CAND-01R1.1 Roadmap.md`
-   - `docs/architecture/adr/R1.1 ADRs/R1.1-A — DETERMINISTIC VERIFIER-SEL.md`
-   - `docs/architecture/adr/R1.1 ADRs/R1.1-B — VERIFIER-VISIBLE INPUT REP.md`
+   - `docs/architecture/stage-3.5/WP-7/R1 Remediation/Gate 5 Re-Adjudication Handoff.md`
+   - `docs/architecture/stage-3.5/WP-7/R1 Remediation/WP7-CAND-01R1_Gate5_Remediation_Status_UPDATED.md`
+   - `docs/architecture/stage-3.5/roadmap/WP7-CAND-01R1.1 Roadmap.md`
+   - `docs/architecture/stage-3.5/adr/R1.1-A — DETERMINISTIC VERIFIER-SEL.md`
+   - `docs/architecture/stage-3.5/adr/R1.1-B — VERIFIER-VISIBLE INPUT REP.md`
 2. **Prior Verification Reports**:
    - Level-2 Baseline: Run ID `0443695590caa787` (95/95 PASS; Gate 5 left OPEN)
    - Level-3 Independent Verification Report: Run ID `e0b53465-e11f-4c28-918d-d8326683dc9b` at commit `b77ef0c53ba6d40c637f65208c820a20003b4794` (R-1 PASS, R-2 PASS, 95/95 PASS; Gate 5 left OPEN)

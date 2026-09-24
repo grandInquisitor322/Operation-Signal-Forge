@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 """SF-3.5-VER-1..11 — Independent verification engine (fail-closed).
 WP7-CAND-01R1 Workstream A + F-1..F-5 + Workstream B taxonomy.
-WP7-CAND-01R1.1 R-1 mandatory SFG16A path + R-2 canonical Fr scalars.
+WP7-CAND-01R1.1 R-1/R-2 + Gate 6 SchemeVerifier boundary.
 """
 
 from __future__ import annotations
@@ -25,12 +25,14 @@ from identity_runtime.zk_abstraction.result_taxonomy import (
     classify_acceptance,
     classify_from_status_reason,
 )
-from identity_runtime.zk_abstraction.bn254 import (
-    PROOF_G1_PREFIX,
+from identity_runtime.zk_abstraction.canonical_public import (
     first_public_scalar_violation,
-    parse_canonical_fr_decimal,
-    parse_g1_proof,
-    validate_g1_affine,
+    parse_canonical_decimal,
+)
+from identity_runtime.zk_abstraction.scheme_types import (
+    BoundStatementTarget,
+    CryptoOutcome,
+    CryptoValidityResult,
 )
 from identity_runtime.zk_abstraction.c4_policy_wrapper import (
     VerifierPolicyContext,
@@ -115,6 +117,7 @@ MockProofFn = Callable[[bytes, BindingTarget, Mapping[str, Any]], bool]
 def default_mock_proof_check(
     proof_bytes: bytes, binding: BindingTarget, public: Mapping[str, Any]
 ) -> bool:
+    """Legacy seam only — Gate 6 C1 uses SchemeVerifier, not this path."""
     expected = ("VALID:" + binding.public_conditions_fingerprint).encode("utf-8")
     return proof_bytes == expected
 
@@ -164,6 +167,8 @@ def _legacy_status(
         "proposition_missing": "WRONG_CLAIM",
         "context_id_missing": "WRONG_CONTEXT",
         "revision_missing": "WRONG_REVISION",
+        "scheme_unsupported": "UNSUPPORTED_SCHEME",
+        "materials_unavailable": "UNSUPPORTED_SCHEME",
     }
     for cid in FAILURE_PRECEDENCE:
         cr = conditions[cid]
@@ -188,6 +193,22 @@ def _legacy_status(
                     return "SCHEME_DISABLED", cr.reason
                 if "retired" in cr.reason:
                     return "SCHEME_RETIRED", cr.reason
+            # Adapter may return reason_code:detail
+            base = cr.reason.split(":", 1)[0] if cr.reason else ""
+            if base in reason_map:
+                return reason_map[base], cr.reason
+            if base in (
+                "g1_a_off_curve",
+                "g1_a_not_in_subgroup",
+                "g1_a_coordinate_out_of_range",
+                "g1_a_malformed_encoding",
+                "proof_format_required_sfg16a",
+                "proof_parse_error",
+                "empty_proof",
+            ):
+                return "MALFORMED_PROOF", cr.reason
+            if base == "scheme_proof_check_failed":
+                return "INVALID_PROOF", cr.reason
             return acceptance.status_code, cr.reason or acceptance.reason
     return acceptance.status_code, acceptance.reason
 
@@ -204,6 +225,7 @@ class IndependentVerifier:
         self.registry = registry
         self.binder = binder or ContextClaimBinder()
         self.audit = audit or CryptographicAuditLogger()
+        # Kept for back-compat only; Gate 6 C1 does not call this.
         self.proof_check = proof_check or default_mock_proof_check
         self.policy_context = policy_context
 
@@ -213,7 +235,6 @@ class IndependentVerifier:
         binding: Any = None
 
         try:
-            # Workstream C: C4 protocol/scheme/policy wrapper (no bypass)
             c4_eval = evaluate_c4(
                 self.registry,
                 it,
@@ -241,7 +262,6 @@ class IndependentVerifier:
                 authorization_permitted=False,
             )
         except AcceptanceControlFlowError as e:
-            # F-3
             result = VerificationResult(
                 accepted=False,
                 status_code=getattr(e, "status_code", "STRUCTURAL_FAILURE"),
@@ -264,7 +284,6 @@ class IndependentVerifier:
                 authorization_permitted=False,
             )
 
-        # Workstream B: SF-3.5-VER-5 taxonomy (does not alter C1-C4 AND)
         if result.acceptance is not None:
             result.taxonomy = classify_acceptance(result.acceptance)
         else:
@@ -279,7 +298,6 @@ class IndependentVerifier:
                 result.taxonomy.verified_eligibility_claim
             )
 
-        # F-3: always audit
         try:
             self.audit.log_verification(
                 context_id=request.context_id,
@@ -328,7 +346,19 @@ class IndependentVerifier:
             return _cr(ConditionId.C2, ConditionOutcome.UNVERIFIABLE, "unverifiable")
         if public.get("_malformed"):
             return _cr(ConditionId.C2, ConditionOutcome.MALFORMED, "malformed")
-        viol = first_public_scalar_violation(public, scalar_keys=("revision",))
+
+        modulus = None
+        try:
+            desc = self.registry.resolve_scheme(
+                request.identity_tuple.scheme_id,
+                request.identity_tuple.scheme_version,
+            )
+            modulus = getattr(desc, "public_scalar_modulus", None)
+        except KeyError:
+            modulus = None
+        viol = first_public_scalar_violation(
+            public, scalar_keys=("revision",), modulus=modulus
+        )
         if viol is not None:
             key, err = viol
             return _cr(
@@ -382,7 +412,7 @@ class IndependentVerifier:
                 binding,
             )
         else:
-            rev_parsed, rev_err = parse_canonical_fr_decimal(rev_val)
+            rev_parsed, rev_err = parse_canonical_decimal(rev_val)
             if rev_err is not None or rev_parsed != request.revision:
                 return (
                     _cr(ConditionId.C3, ConditionOutcome.FAIL, "revision_mismatch"),
@@ -410,51 +440,77 @@ class IndependentVerifier:
             )
         return _cr(ConditionId.C3, ConditionOutcome.PASS, "ok"), binding
 
+    def _build_bound_statement(
+        self,
+        request: VerificationRequest,
+        binding: Optional[BindingTarget],
+        materials_ref: str,
+    ) -> BoundStatementTarget:
+        public = request.verifier_visible_inputs
+        view = {
+            str(k): (v if type(v) is str else (str(v) if v is not None else ""))
+            for k, v in public.items()
+            if not str(k).startswith("_")
+        }
+        if "revision" in public and type(public["revision"]) is not str:
+            view["revision"] = str(public["revision"])
+        it = request.identity_tuple
+        sid = f"{it.scheme_id}@{it.scheme_version}:{request.context_id}:{request.revision}"
+        return BoundStatementTarget(
+            statement_id=sid,
+            scheme_id=it.scheme_id,
+            scheme_version=it.scheme_version,
+            materials_ref=materials_ref,
+            public_input_view=view,
+            context_id=str(request.context_id),
+            revision=str(request.revision),
+            eligibility_proposition=request.claim_proposition or "",
+            relation_hint=(binding.public_conditions_fingerprint if binding else ""),
+        )
+
+    def _map_crypto_to_c1(self, crypto: CryptoValidityResult) -> ConditionResult:
+        mapping = {
+            CryptoOutcome.PASS: ConditionOutcome.PASS,
+            CryptoOutcome.FAIL: ConditionOutcome.FAIL,
+            CryptoOutcome.MALFORMED: ConditionOutcome.MALFORMED,
+            CryptoOutcome.UNVERIFIABLE: ConditionOutcome.UNVERIFIABLE,
+            CryptoOutcome.UNSUPPORTED: ConditionOutcome.UNSUPPORTED,
+        }
+        outcome = mapping.get(crypto.outcome, ConditionOutcome.UNVERIFIABLE)
+        reason = crypto.reason_code
+        if crypto.reason_detail and crypto.reason_detail != crypto.reason_code:
+            reason = f"{crypto.reason_code}:{crypto.reason_detail}"
+        return _cr(ConditionId.C1, outcome, reason)
+
     def _eval_c1(
         self, request: VerificationRequest, binding: Optional[BindingTarget]
     ) -> ConditionResult:
-        """
-        R1.1-A: verifier-selected validation path only.
-        Required format SFG16A. Unprefixed proofs MUST NOT fall through
-        to legacy payload-equality acceptance.
-        """
+        """Gate 6: C1 via SchemeVerifier only (no BN254/SFG16A in orchestrator)."""
         if binding is None:
             return _cr(ConditionId.C1, ConditionOutcome.UNVERIFIABLE, "no_binding")
-        if not request.proof_bytes:
-            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
-
-        if not request.proof_bytes.startswith(PROOF_G1_PREFIX):
-            return _cr(
-                ConditionId.C1,
-                ConditionOutcome.MALFORMED,
-                "proof_format_required_sfg16a",
-            )
-
+        it = request.identity_tuple
         try:
-            g1 = parse_g1_proof(request.proof_bytes)
-        except ValueError as e:
-            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, str(e))
-        if g1 is None:
-            return _cr(
-                ConditionId.C1,
-                ConditionOutcome.MALFORMED,
-                "proof_format_required_sfg16a",
-            )
-
-        g1_reason = validate_g1_affine(g1.x, g1.y)
-        if g1_reason:
-            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, g1_reason)
-
-        proof_for_check = g1.payload
-        if not proof_for_check:
-            return _cr(ConditionId.C1, ConditionOutcome.MALFORMED, "empty_proof")
-
+            desc = self.registry.resolve_scheme(it.scheme_id, it.scheme_version)
+            materials_ref = desc.scheme_material_ref
+        except KeyError:
+            return _cr(ConditionId.C1, ConditionOutcome.UNSUPPORTED, "scheme_unsupported")
         try:
-            ok = self.proof_check(
-                proof_for_check, binding, request.verifier_visible_inputs
+            verifier = self.registry.resolve_verifier(it.scheme_id, it.scheme_version)
+        except KeyError:
+            return _cr(
+                ConditionId.C1, ConditionOutcome.UNSUPPORTED, "materials_unavailable"
             )
+        bound = self._build_bound_statement(request, binding, materials_ref)
+        try:
+            crypto = verifier.verify_crypto(request.proof_bytes, bound)
         except Exception as e:  # noqa: BLE001
-            return _cr(ConditionId.C1, ConditionOutcome.UNVERIFIABLE, str(e))
-        if not ok:
-            return _cr(ConditionId.C1, ConditionOutcome.FAIL, "scheme_proof_check_failed")
-        return _cr(ConditionId.C1, ConditionOutcome.PASS, "ok")
+            return _cr(
+                ConditionId.C1,
+                ConditionOutcome.UNVERIFIABLE,
+                f"verifier_exception:{type(e).__name__}",
+            )
+        if not isinstance(crypto, CryptoValidityResult):
+            return _cr(
+                ConditionId.C1, ConditionOutcome.UNVERIFIABLE, "verifier_exception"
+            )
+        return self._map_crypto_to_c1(crypto)
