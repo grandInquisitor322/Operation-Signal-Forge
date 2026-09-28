@@ -19,6 +19,11 @@ from identity_runtime.zk_abstraction.acceptance import (
     ConditionResult,
 )
 from identity_runtime.zk_abstraction.identity import IdentityTuple
+from identity_runtime.zk_abstraction.protocol_catalog import (
+    ProtocolCatalog,
+    ProtocolSemanticContract,
+    install_default_protocol_catalog,
+)
 from identity_runtime.zk_abstraction.registry import (
     CryptographicRegistry,
     EvaluationResult,
@@ -31,9 +36,12 @@ class VerifierPolicyContext:
     active_policy_version: str
     allowed_protocol_ids: frozenset[str] = frozenset({"sf-zk"})
     require_policy_match: bool = True
+    # Gate 7: optional explicit catalog; default install used when None at evaluate time
+    protocol_catalog: ProtocolCatalog | None = None
 
 
 DEFAULT_POLICY_CONTEXT = VerifierPolicyContext(active_policy_version="1.0.0")
+_DEFAULT_CATALOG = install_default_protocol_catalog()
 
 
 @dataclass(frozen=True)
@@ -43,6 +51,7 @@ class C4Evaluation:
     reason: str
     status_code: str
     evaluation: Optional[EvaluationResult] = None
+    contract: Optional[ProtocolSemanticContract] = None
 
 
 def evaluate_c4(
@@ -51,8 +60,10 @@ def evaluate_c4(
     *,
     operation: OperationType = OperationType.PROOF_VERIFICATION,
     policy_context: Optional[VerifierPolicyContext] = None,
+    protocol_catalog: Optional[ProtocolCatalog] = None,
 ) -> C4Evaluation:
     ctx = policy_context or DEFAULT_POLICY_CONTEXT
+    catalog = protocol_catalog or ctx.protocol_catalog or _DEFAULT_CATALOG
 
     if not identity.protocol_id:
         return C4Evaluation(
@@ -92,6 +103,20 @@ def evaluate_c4(
             "UNSUPPORTED_PROTOCOL_ID",
         )
 
+    # Gate 7: (protocol_id, protocol_version) must resolve to one sealed contract
+    try:
+        contract: ProtocolSemanticContract = catalog.require(
+            identity.protocol_id, identity.protocol_version
+        )
+    except KeyError as e:
+        # Preserve established UNSUPPORTED_PROTOCOL status for version misses
+        return C4Evaluation(
+            False,
+            ConditionOutcome.UNSUPPORTED,
+            str(e).strip("'"),
+            "UNSUPPORTED_PROTOCOL",
+        )
+
     if ctx.require_policy_match and identity.policy_version != ctx.active_policy_version:
         return C4Evaluation(
             False,
@@ -113,14 +138,25 @@ def evaluate_c4(
             False, _map_registry_outcome(ev), ev.reason, ev.status_code, evaluation=ev
         )
 
-    return C4Evaluation(True, ConditionOutcome.PASS, "ok", "OK", evaluation=ev)
+    return C4Evaluation(
+        True,
+        ConditionOutcome.PASS,
+        "ok",
+        "OK",
+        evaluation=ev,
+        contract=contract,
+    )
 
 
 def c4_to_condition(evaluation: C4Evaluation) -> ConditionResult:
+    # Prefix status_code so IndependentVerifier _legacy_status can map taxonomy
+    reason = evaluation.reason
+    if not evaluation.allowed and evaluation.status_code:
+        reason = f"{evaluation.status_code}:{evaluation.reason}"
     return ConditionResult(
         condition_id=ConditionId.C4,
         outcome=evaluation.outcome,
-        reason=evaluation.reason,
+        reason=reason,
     )
 
 

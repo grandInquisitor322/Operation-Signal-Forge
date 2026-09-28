@@ -103,9 +103,19 @@ class CryptographicRegistry:
         version: str,
         operation: OperationType,
         *,
-        protocol_version: str = "1.0.0",
-        policy_version: str = "1.0.0",
+        protocol_version: str | None = None,
+        policy_version: str | None = None,
     ) -> EvaluationResult:
+        # Gate 7 / PROTO-2: do not invent protocol or policy identity
+        if protocol_version is None or protocol_version == "":
+            return EvaluationResult(
+                False, "missing_protocol_version", "MISSING_PROTOCOL_VERSION"
+            )
+        if policy_version is None or policy_version == "":
+            return EvaluationResult(
+                False, "missing_policy_version", "MISSING_POLICY_VERSION"
+            )
+
         try:
             desc = self.resolve_scheme(scheme_id, version)
         except KeyError:

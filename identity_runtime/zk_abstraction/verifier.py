@@ -3,6 +3,7 @@
 """SF-3.5-VER-1..11 — Independent verification engine (fail-closed).
 WP7-CAND-01R1 Workstream A + F-1..F-5 + Workstream B taxonomy.
 WP7-CAND-01R1.1 R-1/R-2 + Gate 6 SchemeVerifier boundary.
+Gate 7: C4 protocol admission status mapping.
 """
 
 from __future__ import annotations
@@ -209,6 +210,35 @@ def _legacy_status(
                 return "MALFORMED_PROOF", cr.reason
             if base == "scheme_proof_check_failed":
                 return "INVALID_PROOF", cr.reason
+            # Gate 7 / C4 taxonomy: surface protocol admission codes
+            if cid == ConditionId.C4:
+                upper = (cr.reason or "").upper()
+                for code in (
+                    "UNSUPPORTED_PROTOCOL",
+                    "UNSUPPORTED_PROTOCOL_ID",
+                    "MISSING_PROTOCOL_VERSION",
+                    "MISSING_POLICY_VERSION",
+                    "POLICY_MISMATCH",
+                    "SCHEME_DOWNGRADE",
+                    "UNSUPPORTED_SCHEME",
+                    "SCHEME_DISABLED",
+                    "SCHEME_RETIRED",
+                    "SCHEME_DEPRECATED_DISALLOWED",
+                ):
+                    if (
+                        upper.startswith(code)
+                        or f":{code}" in upper
+                        or upper.startswith(f"{code}:")
+                    ):
+                        return code, cr.reason
+                if "SCHEME_RETIRED" in upper or (
+                    "RETIRED" in upper and "SCHEME" in upper
+                ):
+                    return "SCHEME_RETIRED", cr.reason
+                if "SCHEME_DISABLED" in upper or (
+                    "DISABLED" in upper and "SCHEME" in upper
+                ):
+                    return "SCHEME_DISABLED", cr.reason
             return acceptance.status_code, cr.reason or acceptance.reason
     return acceptance.status_code, acceptance.reason
 
