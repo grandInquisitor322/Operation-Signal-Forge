@@ -120,7 +120,7 @@ class ProtocolCatalog:
 
         existing = self._entries.get(key)
         if existing is not None:
-            existing_computed lim = existing.compute_seal()
+            existing_computed  = existing.compute_seal()
             if not existing.seal or existing.seal != existing_computed:
                 raise ValueError(
                     f"PROTOCOL_CONTRACT_SEAL_MISMATCH:{key[0]}@{key[1]}:"
