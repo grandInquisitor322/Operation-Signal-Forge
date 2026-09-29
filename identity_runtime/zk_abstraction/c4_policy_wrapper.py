@@ -103,7 +103,7 @@ def evaluate_c4(
             "UNSUPPORTED_PROTOCOL_ID",
         )
 
-    # Gate 7: (protocol_id, protocol_version) must resolve to one sealed contract
+    # Gate 7: (protocol_id, protocol_version) must resolve to one integrity-valid contract
     try:
         contract: ProtocolSemanticContract = catalog.require(
             identity.protocol_id, identity.protocol_version
@@ -116,6 +116,24 @@ def evaluate_c4(
             str(e).strip("'"),
             "UNSUPPORTED_PROTOCOL",
         )
+    except ValueError as e:
+        # G7-CI: content/seal mismatch or related integrity failure — fail closed
+        msg = str(e)
+        if "PROTOCOL_CONTRACT_SEAL_MISMATCH" in msg:
+            return C4Evaluation(
+                False,
+                ConditionOutcome.FAIL,
+                msg,
+                "PROTOCOL_CONTRACT_SEAL_MISMATCH",
+            )
+        if "PROTOCOL_CONTRACT_IMMUTABLE" in msg:
+            return C4Evaluation(
+                False,
+                ConditionOutcome.FAIL,
+                msg,
+                "PROTOCOL_CONTRACT_IMMUTABLE",
+            )
+        raise
 
     if ctx.require_policy_match and identity.policy_version != ctx.active_policy_version:
         return C4Evaluation(
