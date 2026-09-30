@@ -97,7 +97,7 @@ This register records **external services and components** Signal Forge depends 
 | **License impact** | First-party code under repository Apache-2.0; no extra third-party prover license until an external stack is adopted |
 | **Rule before production crypto** | Before adding any production proving/verifying dependency, add a full register row (name, version, license, source URL, data handled) |
 | **Compliance orientation** | `docs/compliance/zkp-compliance-carry-forward.md` |
-| **Gate posture (pointer only)** | Gate 5 CLOSED; Gate 6 formal PASS (architecture); Gate 7 implementation candidate — formal adjudication OPEN; Level-3 pending |
+| **Gate posture (pointer only)** | Gate 5 CLOSED; Gate 6 formal PASS (architecture); Gate 7 formal PASS (G7-CI `feedab71`); D-3 deferred; no production crypto claim | 
 
 ---
 
@@ -193,6 +193,7 @@ Before production:
 | 2026-07-29 | Filled OpenCellID, Daytona, Leaflet/OSM, boto3, AWS license fields |
 | 2026-08-29 | Normalized to `docs/compliance/third-party-apis-and-licenses.md` |
 | 2026-09-28 | Stage 3.x: identity/ZKP first-party mocks only; link zkp-compliance-carry-forward.md |
+| 2026-09-30 | Gate 7 CLOSED / PASS; update ZKP gate posture pointer |
 
 ---
 
