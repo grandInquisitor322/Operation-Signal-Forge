@@ -2,7 +2,9 @@
 
 **Project:** Operation Signal Forge  
 **Status:** Standing process note (H1 Independent Verification)  
-**Aligned through:** Phase 3.5 Gate 7 Implementation Candidate  (formal Gate 7 adjudication OPEN; candidate SHA adeef37508214fe1522f5941ac67539f1acd52a3)
+**Aligned through:** Stage 3.5 **CLOSED / PASS** (Gates 5–7); Gate 7 formal adjudication CLOSED / PASS  
+**Authoritative G7-CI implementation SHA:** `feedab71ab2ab0689b76e2492b25fc7283aa2283`  
+**Originally recorded G7-CI candidate SHA (historical, not a Git object):** `5f7523bf3865dce519ccd87a82fe897f665bd123`  
 **Nature:** Evidentiary hygiene — **non-certifying**
 
 These conventions keep `dapp_api/independent_verification.jsonl` usable as a phase-over-phase evidence trail. They do not change the Level 1/2/3 *definitions* in `verification_levels.py`; they govern **how records are written and interpreted**.
@@ -55,12 +57,24 @@ For a binding **PASS** record, include at least:
 | Docs + machine-checkable tests / packaging | Level **2** default |
 | Crypto runtime, proof-on-path, or high-consequence authz-boundary change | Expect Level **2–3**; **do not** cite an old non-crypto Level 2 as a free pass |
 | Ambiguity | **Escalate** (stronger level), never de-escalate without a new architectural decision |
+
 Phase 3.0–3.2 packaging/definition work is **not** automatic Level 3 solely because future ZKP is high-risk.
 
-Stage 3.5 
+| Situation | Guidance |
+|-----------|----------|
 | Gate 5/6 architecture + test re-execution | Level 2 binding rows as used; Gate 6 also has formal L3 evidence on record |
-| Gate 7 protocol versioning / interoperability | Binding evidence should be Level 2+; formal close expects independent Level 3 against the frozen commit SHA |
-| Local/developer suite green (e.g. L2 id cd6d80d1b6ab784b) | Not a substitute for Level 3 independence 
+| Gate 7 protocol versioning / G7-CI | L2 `f39c9d4e2d9055d2` (90/90); L3 `276d3506496b78e2`; formal Gate 7 CLOSED / PASS |
+| Stage 3.5 formal closure | Covers **Gates 5–7** only; see formal closure adjudication |
+| Local/developer suite green | Not a substitute for Level 3 independence where Level 3 is required |
+
+### Independence limitations (preserve; disclosure only)
+
+Recorded Stage 3.5 / Gate 6–7 Level 3 work used **verifier-controlled local execution under Phase 2.9 I2**. It was **not** a separate CI account or multi-tenant verification farm. Implementer and verifier **roles** are distinct on the records; work occurred in the same organizational channel. Documentation updates do **not** remove these limitations.
+
+### Scheme coverage (Gate 6)
+
+Gate 6 substitution evidence used **mock** scheme adapters (including `mock-bn254-sfg16a` / `mock-digest-v2` as applicable). Do **not** claim production scheme interoperability or production cryptographic certification.
+
 ---
 
 ## 5. Supersede pattern
@@ -76,7 +90,7 @@ Do not edit the old row’s `result` to hide history.
 
 ---
 
-## 6. “Corrected” audit documents
+## 6. “Corrected” audit documents and SHA custody
 
 If an architecture audit file is republished as **Corrected** or **Final Verification**:
 
@@ -87,15 +101,25 @@ If an architecture audit file is republished as **Corrected** or **Final Verific
 
 Leaving only a “Corrected” title with no prior draft or summary creates a **compliance Partial-Residual** on trail transparency (see Phase 3.2 compliance assessment).
 
+### Gate 7 candidate SHA custody
+
+| Role | SHA |
+|------|-----|
+| Originally recorded (historical; **not** a Git object) | `5f7523bf3865dce519ccd87a82fe897f665bd123` |
+| Authoritative G7-CI implementation | `feedab71ab2ab0689b76e2492b25fc7283aa2283` |
+| Parent Gate 7 candidate | `adeef37508214fe1522f5941ac67539f1acd52a3` |
+
+Preserve both the original and authoritative values. Do **not** globally rewrite historical records. Chain-of-Correction: `docs/architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Chain_of_Correction_Note.md`.
+
 ---
 
 ## 7. Scope and naming
 
 - `scope` should match the phase id pattern, e.g.  
-  `phase-3.2-disaster-context-authority-and-responder-model`
+  `phase-3.2-disaster-context-authority-and-responder-model`  
+  `phase-3.5-gate-7-contract-integrity-seal-binding`
 - `verifier` and `implementer` must be **distinct** strings for independent verification claims  
 - Same human operating the machine is allowed operationally; the **roles** on the record must still differ for binding independent verification
-- phase-3.5-gate-7-protocol-versioning
 
 ---
 
@@ -110,7 +134,21 @@ Leaving only a “Corrected” title with no prior draft or summary creates a **
 
 ---
 
-## 9. Related code and docs
+## 9. Test-suite hygiene (C-6)
+
+Some test runs can rewrite tracked JSON/JSONL evidence files under `dapp_api/` or workstream evidence paths.
+
+**Operational precaution:**
+
+- Prefer running verification suites in a **controlled working copy or archive** when you must avoid contaminating the tracked tree.  
+- **Inspect** any generated changes to tracked evidence files before committing.  
+- Do **not** commit incidental evidence-file rewrites unless they are intentional, reviewed append-only trail updates.
+
+This is a process control; it does not change verification APIs or test semantics.
+
+---
+
+## 10. Related code and docs
 
 | Item | Location |
 |------|----------|
@@ -118,6 +156,10 @@ Leaving only a “Corrected” title with no prior draft or summary creates a **
 | Levels / evidence gates | `identity_runtime/verification_levels.py` |
 | Level 3 local policy (I2) | `identity_runtime/level3_environment_policy.py` |
 | ZKP boundaries carry-forward | `docs/compliance/zkp-compliance-carry-forward.md` |
+| Stage 3.5 formal closure | `docs/architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md` |
+| Gate 7 formal adjudication | `docs/architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Formal_Adjudication.md` |
+| Gate 7 Chain-of-Correction | `docs/architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Chain_of_Correction_Note.md` |
+| G7-CI ADR | `docs/architecture/stage-3.5/gate-7-protocol-versioning/ADR-G7-Contract-Integrity-and-Seal-Binding.md` |
 
 ---
 

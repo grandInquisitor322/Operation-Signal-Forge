@@ -3,7 +3,9 @@
 **Project:** Operation Signal Forge  
 **Nature:** Technical compliance and assurance artifacts — **non-certifying** (not legal advice or regulatory certification)
 
-This folder holds privacy/security-oriented project docs, phase **Compliance Impact Assessments**, and standing guardrails for future ZKP work.
+This folder holds privacy/security-oriented project docs, phase **Compliance Impact Assessments**, and standing guardrails for ZKP and Stage 3.x work.
+
+**Stage 3.5 status:** **CLOSED / PASS** (Gates 5–7). Closure is architectural and verification evidence, **not** production cryptographic certification. Stage 3.6+ runtime proof-path and Authorization Matrix integration remain future work.
 
 ---
 
@@ -13,8 +15,24 @@ This folder holds privacy/security-oriented project docs, phase **Compliance Imp
 |-----|---------|
 | [zkp-compliance-carry-forward.md](./zkp-compliance-carry-forward.md) | ZKP guardrails; Stage 3.5 CLOSED / PASS; D-3 and 3.6+ deferred |
 | [verification-trail-conventions.md](./verification-trail-conventions.md) | How to write and interpret H1 records in `dapp_api/independent_verification.jsonl` |
-| [post-zkp-integration-compliance-checklist.md](./post-zkp-integration-compliance-checklist.md) | Fill-later evidence checklist for Stage 3.6+ / proof-on-path work |
 | [third-party-apis-and-licenses.md](./third-party-apis-and-licenses.md) | External services, licenses, attribution, and deployer obligations |
+| [security-assumptions.md](./security-assumptions.md) | Standing security assumptions |
+
+---
+
+## Stage 3.5 architecture & adjudication (outside this folder)
+
+| Artifact | Path |
+|----------|------|
+| Stage 3.5 formal closure | [`../architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md`](../architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md) |
+| Gate 7 formal adjudication | [`../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Formal_Adjudication.md`](../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Formal_Adjudication.md) |
+| Gate 7 Chain-of-Correction | [`../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Chain_of_Correction_Note.md`](../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Chain_of_Correction_Note.md) |
+| G7-CI ADR (contract integrity) | [`../architecture/stage-3.5/gate-7-protocol-versioning/ADR-G7-Contract-Integrity-and-Seal-Binding.md`](../architecture/stage-3.5/gate-7-protocol-versioning/ADR-G7-Contract-Integrity-and-Seal-Binding.md) |
+| G7-CI implementation plan | [`../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Contract_Integrity_and_Seal_Binding_Implementation_Plan.md`](../architecture/stage-3.5/gate-7-protocol-versioning/Gate_7_Contract_Integrity_and_Seal_Binding_Implementation_Plan.md) |
+| Gate 6 formal adjudication | [`../architecture/stage-3.5/gate-6-cryptographic-agility/Gate_6_Formal_Adjudication.md`](../architecture/stage-3.5/gate-6-cryptographic-agility/Gate_6_Formal_Adjudication.md) |
+| Gate 5 re-adjudication | Under `../architecture/stage-3.5/WP-7/Abjudication Reports/` |
+
+**Scope note:** Recorded Stage 3.5 closure covers **Gates 5–7** only. It does not invent or close unrecorded Gates 1–4.
 
 ---
 
@@ -34,35 +52,9 @@ Prefer these **assessment** filenames when citing a phase close:
 | 3.1 | `Phase_3_1_Compliance_Impact_Assessment.docx` / `Grok Phase 3.1 Compliance Impact Assessment.docx` |
 | **3.2** | `Phase_3.2_Compliance_Impact_Assessment.md` |
 | **3.3–3.4** | Architecture closed; cite stage packages under `docs/architecture/` |
-| **3.5** | Formal closure: `../architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md` (Gates 5–7 CLOSED / PASS) |
+| **3.5** | Formal closure path above (Gates 5–7 CLOSED / PASS) |
 
 Related architecture packages live under `docs/architecture/zkp/` and `docs/architecture/identity/`. Milestones live under `docs/milestones/`.
-
----
-
-## Prompts vs assessments
-
-| Kind | Example | Use |
-|------|---------|-----|
-| **Assessment** | `Phase_3.2_Compliance_Impact_Assessment.md` | Cite for phase disposition |
-| **Prompt / worksheet** | `phase-3.2-compliance-impact-assessment.md` | Authoring input; not the closed assessment |
-
-When both exist, the **`Phase_X.Y_Compliance_Impact_Assessment.*`** (or clearly titled “Compliance Impact Assessment”) is the citation target.
-
----
-
-## Foundational compliance topics (pre-ZKP)
-
-| Doc | Topic |
-|-----|--------|
-| [third-party-apis-and-licenses.md](./third-party-apis-and-licenses.md) | Third-party APIs, cloud, SDK licenses, attribution |
-| `docs_compliance_privacy-and-data-handling.md.docx` | Privacy / data handling (convert to `.md` when convenient) |
-| `docs_compliance_data-sources.md.docx` | Data sources (convert to `.md` when convenient) |
-| `Compliance Review 7_29_26.docx` | Earlier overall review snapshot |
-
-Legacy export (optional archive only; do not cite as canonical):
-
-- `docs_compliance_third-party-apis-and-licenses.md_ (1).docx` or `_archive_third-party-apis-and-licenses.docx`
 
 ---
 
@@ -77,16 +69,8 @@ Legacy export (optional archive only; do not cite as canonical):
 
 ---
 
-## Naming conventions (ongoing)
-
-- Assessments: `Phase_<major>.<minor>_Compliance_Impact_Assessment.md` (or `.docx`)  
-- Standing guardrails: lowercase kebab-case (e.g. `zkp-compliance-carry-forward.md`, `third-party-apis-and-licenses.md`)  
-- Use **`docs/compliance/`** only — no top-level `Compliance\` folder for new canon  
-
----
-
 ## Out of scope for this index
 
 - Claiming certification against named regulations  
-- Completing the post-ZKP checklist before a proof exists on the path  
-- Replacing architecture ADRs or phase milestones (those remain in `docs/architecture/` and `docs/milestones/`)
+- Completing post-integration proof-on-path evidence before a proof exists on the path  
+- Replacing architecture ADRs or phase milestones
