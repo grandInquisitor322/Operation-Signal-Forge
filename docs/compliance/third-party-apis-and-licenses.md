@@ -1,6 +1,6 @@
 # Third-Party APIs and Licenses — Operation Signal Forge
 
-**Version:** 0.3 
+**Version:** 0.4 
 **Status:** Active  
 **Related:** `docs/compliance/data-sources.md`, `docs/compliance/privacy-and-data-handling.md`, `docs/architecture/security-assumptions.md`
 
@@ -138,6 +138,28 @@ This register records **external services and components** Signal Forge depends 
 
 © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
 
+### 7.2 Nominatim (OpenStreetMap geocoder)
+
+| Attribute | Detail |
+|-----------|--------|
+| **Purpose** | Forward geocoding for **dashboard Dynamic Location** place search (city, country, landmark → map navigation) |
+| **Integration** | `dashboard/index.html` — Leaflet Control Geocoder + optional client `fetch` to Nominatim; **navigation only** |
+| **Provider** | OpenStreetMap / OSMF public Nominatim instance |
+| **Service URL** | `https://nominatim.openstreetmap.org/` (confirm if self-hosted later) |
+| **Data sent** | Search query strings typed by the operator (place names); not sensor fusion payloads |
+| **Data returned** | Latitude/longitude and display names used only to move the map view |
+| **Network** | **Required** for place search; offline name lookup is not provided |
+| **Auth** | None on the public instance (usage policy applies) |
+| **Terms / usage policy** | https://operations.osmfoundation.org/policies/nominatim/ — fair use, valid User-Agent, no heavy bulk geocoding on the public server |
+| **License / data** | Geocoding results derive from OpenStreetMap data (**ODbL**); respect OSM attribution and database terms |
+| **Attribution** | Keep OSM credit on the map; do not strip Leaflet/OSM attribution |
+| **Not used for** | Authorization Matrix decisions, ZKP public inputs, incident activation, fusion scores, or proof validity |
+| **Privacy** | Prefer not to log full search strings with operator identity; queries leave the browser to a third party |
+| **Failure handling** | Search fails closed for navigation only — map, continent presets, and lat/lon entry still work |
+| **Production note** | Public Nominatim is unsuitable for high-volume production geocoding; plan self-hosted Nominatim or a commercial geocoder if query volume grows |
+
+**Feature reference:** tag `v0.4.0-dynamic-location` / commit `56e34e2` (Dynamic Location frontend).
+
 ---
 
 ## 8. Language and package dependencies (runtime)
@@ -182,6 +204,7 @@ Before production:
 - [ ] Daytona limited to non-prod; keys rotated as needed
 - [ ] Leaflet version pinned; map tile attribution correct for chosen provider
 - [ ] Dependency versions recorded for the deployed build
+- [ ] Nominatim/OSM geocoder usage reviewed (public instance limits or self-hosted plan)
 
 ---
 
@@ -194,6 +217,7 @@ Before production:
 | 2026-08-29 | Normalized to `docs/compliance/third-party-apis-and-licenses.md` |
 | 2026-09-28 | Stage 3.x: identity/ZKP first-party mocks only; link zkp-compliance-carry-forward.md |
 | 2026-09-30 | Gate 7 CLOSED / PASS; update ZKP gate posture pointer |
+| 2026-10-05 | Dynamic Location: Nominatim geocoder + OSM tiles usage clarified for dashboard place search |
 
 ---
 
