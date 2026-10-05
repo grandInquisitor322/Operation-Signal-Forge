@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <title>Signal Forge — Site Operations</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <style>
   :root {
@@ -84,6 +86,20 @@
   button:hover { border-color: var(--accent); }
 
   .empty-msg { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+  .map-nav-control {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.35); padding: 5px;
+  }
+  .map-nav-control button {
+    width: auto; min-width: 32px; margin: 0 2px 0 0; padding: 5px 7px;
+  }
+  .map-nav-control button:last-child { margin-right: 0; }
+  .map-coordinate-control { padding: 6px; }
+  .map-coordinate-control input {
+    width: 170px; background: #1a2024; color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 11px;
+  }
+  .map-coordinate-control button { margin-top: 4px; width: 100%; }
 
   .confirmed-panel {
     background: #1f2529; border: 1px solid var(--confirmed); border-radius: 6px;
@@ -171,7 +187,125 @@ const USE_SAMPLE_DATA = false; // flip to false once API_BASE is live
 // ---------------------------------------------------------------------------
 // Map setup
 // ---------------------------------------------------------------------------
-const map = L.map('map', { zoomControl: true }).setView([10.4806, -66.9036], 17);
+const MAP_VIEW_STORAGE_KEY = 'signal-forge-dashboard-map-view-v1';
+const DEFAULT_MAP_VIEW = { center: [20, 0], zoom: 2 };
+
+function loadSavedMapView() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MAP_VIEW_STORAGE_KEY));
+    if (
+      saved &&
+      Array.isArray(saved.center) &&
+      saved.center.length === 2 &&
+      Number.isFinite(saved.center[0]) &&
+      Number.isFinite(saved.center[1]) &&
+      Number.isFinite(saved.zoom)
+    ) {
+      const [lat, lon] = saved.center;
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        return { center: [lat, lon], zoom: Math.min(20, Math.max(1, saved.zoom)) };
+      }
+    }
+  } catch (e) {
+    console.warn('Ignoring invalid saved map view', e);
+  }
+  return DEFAULT_MAP_VIEW;
+}
+
+const initialMapView = loadSavedMapView();
+const map = L.map('map', { zoomControl: true })
+  .setView(initialMapView.center, initialMapView.zoom);
+
+map.on('moveend', () => {
+  try {
+    const center = map.getCenter();
+    localStorage.setItem(MAP_VIEW_STORAGE_KEY, JSON.stringify({
+      center: [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))],
+      zoom: map.getZoom()
+    }));
+  } catch (e) {
+    console.warn('Unable to persist map view', e);
+  }
+});
+
+// Location controls are UI navigation only. They do not alter sensor data,
+// proof inputs, verification, or authorization decisions.
+const continentViews = {
+  'North America': [[40, -100], 3],
+  'South America': [[-15, -60], 3],
+  'Europe': [[50, 15], 4],
+  'Africa': [[5, 20], 3],
+  'Asia': [[35, 100], 3],
+  'Oceania': [[-25, 135], 3],
+  'Antarctica': [[-82, 0], 3]
+};
+
+const continentControl = L.control({ position: 'topright' });
+continentControl.onAdd = function () {
+  const container = L.DomUtil.create('div', 'map-nav-control');
+  container.title = 'Jump to continent';
+  Object.entries(continentViews).forEach(([name, view]) => {
+    const button = L.DomUtil.create('button', '', container);
+    button.type = 'button';
+    button.textContent = name.replace('North America', 'N. America')
+      .replace('South America', 'S. America');
+    button.title = name;
+    L.DomEvent.disableClickPropagation(button);
+    L.DomEvent.on(button, 'click', () => map.flyTo(view[0], view[1]));
+  });
+  return container;
+};
+continentControl.addTo(map);
+
+const coordinateControl = L.control({ position: 'topright' });
+coordinateControl.onAdd = function () {
+  const container = L.DomUtil.create('div', 'map-nav-control map-coordinate-control');
+  const input = L.DomUtil.create('input', '', container);
+  input.type = 'text';
+  input.placeholder = 'lat, lon (e.g. 10.48, -66.90)';
+  input.setAttribute('aria-label', 'Coordinates');
+
+  const button = L.DomUtil.create('button', '', container);
+  button.type = 'button';
+  button.textContent = 'Go to coordinates';
+
+  const goToCoordinates = () => {
+    const parts = input.value.split(',').map(part => Number(part.trim()));
+    if (
+      parts.length !== 2 ||
+      !Number.isFinite(parts[0]) ||
+      !Number.isFinite(parts[1]) ||
+      parts[0] < -90 || parts[0] > 90 ||
+      parts[1] < -180 || parts[1] > 180
+    ) {
+      addLog('Invalid coordinates — use latitude, longitude');
+      return;
+    }
+    map.flyTo([parts[0], parts[1]], Math.max(map.getZoom(), 12));
+  };
+
+  L.DomEvent.disableClickPropagation(container);
+  L.DomEvent.on(button, 'click', goToCoordinates);
+  L.DomEvent.on(input, 'keydown', e => {
+    if (e.key === 'Enter') goToCoordinates();
+  });
+  return container;
+};
+coordinateControl.addTo(map);
+
+const geocoderControl = L.Control.geocoder({
+  defaultMarkGeocode: false,
+  placeholder: 'Search city, country, landmark…',
+  collapsed: false,
+  geocoder: L.Control.Geocoder.nominatim({
+    serviceUrl: 'https://nominatim.openstreetmap.org/'
+  })
+})
+.on('markgeocode', event => {
+  const center = event.geocode.center;
+  map.flyTo(center, Math.max(map.getZoom(), 12));
+})
+.addTo(map);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
