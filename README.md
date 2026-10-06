@@ -103,7 +103,7 @@ This is a **triage aid**, not a substitute for trained teams, canine units, or s
 | **3.0** | Cryptographic objective & privacy/success boundary (definition only) |
 | **3.1** | Single proof use case + design principles (min disclosure, context-bound, proof ≠ authz) |
 | **3.2** | Authority model packaged (incident / qualification / assignment / Matrix / ZKP verifier); **SATISFIED** |
-| **3.3+** | Context representation → witness/public inputs → protocol → runtime (not done) |
+| **3.3+** | Context representation → witness/public inputs → protocol → runtime **SATISFIED** |
 | **3.6+** | Runtime proof path + Matrix integration evidence — **not done** |
 
 Standing compliance orientation: `docs/compliance/zkp-compliance-carry-forward.md`. licenses: `docs/compliance/third-party-apis-and-licenses.md` · Stage 3.5 closure: `docs/architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md`.
