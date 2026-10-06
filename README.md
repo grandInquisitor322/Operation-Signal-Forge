@@ -2,7 +2,7 @@
 
 Ground-sensor fusion and decision-support stack for search-and-rescue (USAR) style operations. Multiple sensor modalities feed a **deterministic Fusion Engine**; optional **capability** and **identity** layers sit beside it without owning fusion, persistence, or alerting.
 
-The platform is evolving toward **PANGEA** — an Uber-DApp style surface over Operation Signal Forge: Core Capability Layer, Trust Layer, and Identity Layer (AgentForge, authorization isolation, and bounded ZKP design).
+The platform is evolving toward **PANGEA** — an Uber-DApp style surface over Operation Signal Forge: Core Capability Layer, Trust Layer, and Identity Layer (AgentForge, authorization isolation, and bounded ZKP design).  PANGEA is quantum-resilient by design: the cryptographic layer is scheme-agnostic, so the post-quantum migration is a registry change, not a rewrite.
 
 **Current baseline (repo):** Stage **3.5 CLOSED / PASS** (Gates 5–7 formal). Cryptographic abstraction, scheme agility, and protocol versioning/identity are closed as architecture and verification evidence — **not** production cryptographic certification. Zero-knowledge **proof validity is not authorization**; the **Authorization Matrix** remains the decision authority for actions. Stage **3.6+** (runtime proof path and Matrix integration evidence) remains future work.
 ---
@@ -21,6 +21,23 @@ Signal Forge is built so automation can assist operations **without becoming an 
 | **Human command remains in the loop** | Cell status (`unassigned` → `searching` → `cleared` / `confirmed`) is updated by operators; the system narrows triage, it does not replace USAR command. |
 
 In short: sensors and models may propose; **infrastructure enforces separation of fusion, advice, proof, and permission** so autonomy stays accountable.
+
+## Quantum resilience (by design)
+
+PANGEA is **quantum-resilient by design** — not "quantum-proofed" in any single component. The distinction is deliberate: what's built is the *capacity to migrate*, not a certified post-quantum scheme.
+
+| Property | Where it lives | Status |
+|----------|---------------|--------|
+| **Scheme-agnostic verifier** | `SchemeVerifier` boundary — any ZKP scheme plugs in behind one interface | Gate 6, CLOSED |
+| **No hardwired pairing-based scheme** | System is not locked to Groth16 or any Shor-vulnerable construction | By design |
+| **Explicit identity tuple** | `(protocol_id, protocol_version, scheme_id, scheme_version, policy_version)` on every proof operation | Gate 7, CLOSED |
+| **No inference, no defaults, no silent fallback** | Unregistered scheme → fail closed. No downgrade path. | Gate 7, CLOSED |
+| **Registry-swap migration** | Moving to a lattice-based or other PQ construction is a registry update | Gate 6, CLOSED |
+| **Hybrid classical + PQ operation** | Supported by the protocol versioning model, not by a rewrite | By design |
+
+**What this is not:** production cryptographic certification. Adapters currently in use are **mock adapters only** (Stage 3.5 closure condition C-4). No production soundness claim is made. The runtime proof path and Matrix integration remain Stage 3.6+ work.
+
+The correct framing: PANGEA is a **quantum-resilient platform**, not a quantum-proofed component. Agility is what's built; a specific post-quantum scheme is what plugs in next.
 
 ## What it does
 
@@ -102,8 +119,10 @@ This is a **triage aid**, not a substitute for trained teams, canine units, or s
 |-------|---------|
 | **3.0** | Cryptographic objective & privacy/success boundary (definition only) |
 | **3.1** | Single proof use case + design principles (min disclosure, context-bound, proof ≠ authz) |
-| **3.2** | Authority model packaged (incident / qualification / assignment / Matrix / ZKP verifier); **SATISFIED** |
-| **3.3+** | Context representation → witness/public inputs → protocol → runtime **SATISFIED** |
+| **3.2** | Authority model packaged (incident / qualification / assignment / Matrix / ZKP verifier);
+| **3.3+** | Context representation → witness/public inputs → protocol → runtime |
+| 3.5 | Cryptographic abstraction, scheme agility, protocol versioning/identity — quantum-resilient architecture closed. Runtime path deferred. |
+**SATISFIED** |
 | **3.6+** | Runtime proof path + Matrix integration evidence — **not done** |
 
 Standing compliance orientation: `docs/compliance/zkp-compliance-carry-forward.md`. licenses: `docs/compliance/third-party-apis-and-licenses.md` · Stage 3.5 closure: `docs/architecture/stage-3.5/gate-7-protocol-versioning/Stage_3_5_Formal_Closure_Adjudication.md`.
