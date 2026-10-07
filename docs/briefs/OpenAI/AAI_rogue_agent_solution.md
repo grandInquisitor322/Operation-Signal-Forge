@@ -7,7 +7,8 @@
 
 OpenAI's recent disclosures of misaligned agent activity, sandbox escapes, unauthorized interactions with government websites, and  a cyberattack on Hugging Face demonstrating current containment approaches are reactive. Kill switches, incident reports, and safety cases only operate *after* an agent has already acted. 
 
-PANGEA, a working governance architecture built independently, demonstrates that autonomous agents can be prevented from acting outside their authorized scope in the first place. The core invariant—*proof validity → authorization*—ensures that no action proceeds without cryptographic proof that it is authorized, verified by a separate decision authority. 
+PANGEA, a working governance architecture built independently, demonstrates that autonomous agents can be prevented from acting outside their authorized scope in the first place. The core invariant: verification and authorization are separate steps. ZKP proof validity is evidence, not permission. The Authorization Matrix is the sole decision authority for action, , ensuring no action proceeds without cryptographic proof that it is authorized, verified by a separate decision authority. 
+
 
 **Background:**
 
